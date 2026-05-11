@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { CSSProperties, ReactNode } from "react";
 
 type Variant = "default" | "success" | "warning" | "error" | "info" | "neutral" | "primary";
 
@@ -12,9 +13,22 @@ const variants: Record<Variant, string> = {
   primary: "bg-primary text-primary-foreground"
 };
 
-export function Badge({ variant = "default", className, children }: { variant?: Variant; className?: string; children: React.ReactNode }) {
+export function Badge({
+  variant = "default",
+  className,
+  style,
+  children
+}: {
+  variant?: Variant;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap", variants[variant], className)}>
+    <span
+      className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap", variants[variant], className)}
+      style={style}
+    >
       {children}
     </span>
   );

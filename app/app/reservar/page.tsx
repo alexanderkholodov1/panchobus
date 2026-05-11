@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -23,7 +23,7 @@ function CuposPill({ reservados, total }: { reservados: number; total: number })
   return <span className={`text-xs font-medium ${color}`}>{libre > 0 ? `${libre} cupos` : "Lista espera"}</span>;
 }
 
-export default function ReservarPage() {
+function ReservarContent() {
   const router = useRouter();
   const search = useSearchParams();
   const { user } = useSession();
@@ -234,5 +234,13 @@ export default function ReservarPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function ReservarPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReservarContent />
+    </Suspense>
   );
 }

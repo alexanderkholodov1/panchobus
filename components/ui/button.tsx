@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger";
+type Variant = "default" | "primary" | "secondary" | "ghost" | "outline" | "danger";
 type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -11,6 +11,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
+  default: "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] shadow-sm",
   primary: "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] shadow-sm",
   secondary: "bg-surface-2 text-foreground hover:bg-border/40 border border-border",
   ghost: "hover:bg-surface-2 text-foreground",

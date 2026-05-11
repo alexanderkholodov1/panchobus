@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
@@ -12,7 +12,7 @@ import { useSession } from "@/components/providers/demo-session";
 import { toast } from "@/components/ui/toaster";
 import { ShieldCheck, GraduationCap, Bus } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const search = useSearchParams();
   const { loginByCredentials, loginAs } = useSession();
@@ -110,5 +110,13 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }
