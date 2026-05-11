@@ -20,7 +20,7 @@ Documento para Alexander al presentar la plataforma. Resume la arquitectura, las
 - **Backend**: Supabase. Postgres con RLS por rol, Auth nativa con validación de dominio institucional, Realtime para sincronizar cupos y ubicación de buses.
 - **Mapas**: MapLibre GL JS sobre tiles de OpenStreetMap. Cero costo, sin API key.
 - **IA**: Gemini API (free tier). Cuatro flows operativos sobre datos agregados: insights de demanda, recomendaciones de rutas, detección de fricciones UX, daily digest.
-- **Hosting**: Firebase App Hosting plan Spark. Deploy automático en cada push a `main` desde GitHub.
+- **App Hosting**
 - **Capa de abstracción `lib/db/`**: aísla Supabase del resto del código. Si en el futuro la USFQ migra a Firestore (o cualquier otra DB), solo se cambia ese archivo.
 
 ---
