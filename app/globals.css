@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 244 243 242;
+  --surface: 255 255 255;
+  --surface-2: 249 248 247;
+  --fg: 35 31 32;
+  --muted: 110 110 115;
+  --border: 226 224 222;
+  --primary: 225 27 34;
+  --primary-fg: 255 255 255;
+}
+
+.dark {
+  --bg: 15 14 14;
+  --surface: 26 23 24;
+  --surface-2: 34 30 31;
+  --fg: 244 243 242;
+  --muted: 160 158 162;
+  --border: 50 46 47;
+  --primary: 232 60 65;
+  --primary-fg: 255 255 255;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-fg));
+}
+
+/* Scrollbar discreto */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--muted));
+}
+
+/* Animaciones reutilizables */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(225 27 34 / 0.4); }
+  50% { box-shadow: 0 0 0 12px rgb(225 27 34 / 0); }
+}
+.pulse-red {
+  animation: pulse-red 2s infinite;
+}
+
+/* Mapa */
+.maplibregl-canvas {
+  outline: none;
+}
+.maplibregl-ctrl-attrib {
+  font-size: 10px !important;
+  opacity: 0.7;
+}
+
+/* Hide focus ring only on mouse focus, keep on keyboard */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid rgb(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
