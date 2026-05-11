@@ -13,7 +13,7 @@ export function PublicFooter() {
           <h4 className="text-sm font-semibold mb-3">Plataforma</h4>
           <ul className="space-y-2 text-sm text-muted">
             <li><Link href="/#como-funciona" className="hover:text-foreground">Cómo funciona</Link></li>
-            <li><Link href="/#rutas" className="hover:text-foreground">Rutas disponibles</Link></li>
+            <li><Link href="/#acceso" className="hover:text-foreground">Acceso protegido</Link></li>
             <li><Link href="/registro" className="hover:text-foreground">Crear cuenta</Link></li>
           </ul>
         </div>
@@ -27,7 +27,7 @@ export function PublicFooter() {
         </div>
       </div>
       <div className="border-t border-border py-4 text-center text-xs text-muted">
-        © {new Date().getFullYear()} Universidad San Francisco de Quito · Proyecto académico Desarrollo Web 2
+        © {new Date().getFullYear()} Universidad San Francisco de Quito · Servicio Pancho Bus
       </div>
     </footer>
   );

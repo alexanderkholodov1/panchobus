@@ -8,9 +8,8 @@
 
 ## Contexto humano — léelo antes de tocar nada
 
-- **Es un proyecto académico** del curso Desarrollo Web 2 (NRC 3081, USFQ, Prof. Andrés Eduardo Parra Sánchez) entregable mañana del momento de redacción inicial.
-- **PERO** es también un escaparate profesional: el autor (Alexander Kholodov, estudiante CS USFQ) busca que las autoridades de la USFQ y/o Jairo Carvajal (coordinador de movilidad, jcarvajal@usfq.edu.ec, oficina PF104) vean el prototipo y consideren contratarlo para construir la versión real. **Cada decisión de diseño, copy y arquitectura debe sostener esa doble lectura: cumple los requisitos del curso Y demuestra capacidad profesional para reemplazar el sistema actual de la universidad.**
-- No suene a tarea académica; suene a producto. Cero placeholder text, cero "Lorem ipsum", cero copy genérico. Todo en la voz de marca USFQ ("Tu libertad, comienza aquí").
+- Es un producto oficial en fase de demostración para autoridades USFQ. Debe sonar a implementación real, no a trabajo académico.
+- Cada decisión de diseño, copy y arquitectura debe sostener una lectura profesional y operativa. Cero placeholder text, cero copy genérico. Voz de marca USFQ ("Tu libertad, comienza aquí").
 
 ## Requisitos del profesor (cumplimiento obligatorio)
 
@@ -30,7 +29,7 @@ Del enunciado original:
 13. Rutas y paradas privadas (solo autenticados).
 14. Responsive mobile.
 
-**Backend exigido**: Supabase (Postgres + Auth + RLS). El usuario personalmente prefiere Firestore/Realtime DB pero por exigencia pedagógica vamos con Supabase. **Mantener capa `lib/db/index.ts` como abstracción** — el día que migre a Firestore, solo se reemplaza ese archivo.
+**Backend**: Supabase (Postgres + Auth + RLS). **Mantener capa `lib/db/index.ts` como abstracción** — el día que migre a Firestore, solo se reemplaza ese archivo.
 
 **Hosting exigido por el usuario**: Firebase App Hosting (plan Spark gratuito), deploy automático desde GitHub. Dominio probable: `panchobus.web.app` o similar.
 

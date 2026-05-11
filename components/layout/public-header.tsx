@@ -24,8 +24,8 @@ export function PublicHeader() {
         <Link href="/" className="flex items-center"><Logo size={28} /></Link>
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <Link href="/#como-funciona" className="text-muted hover:text-foreground transition-colors">Cómo funciona</Link>
-          <Link href="/#rutas" className="text-muted hover:text-foreground transition-colors">Rutas</Link>
-          <Link href="/#equipo" className="text-muted hover:text-foreground transition-colors">Equipo</Link>
+          <Link href="/#acceso" className="text-muted hover:text-foreground transition-colors">Acceso</Link>
+          <Link href="/#operacion" className="text-muted hover:text-foreground transition-colors">Operación</Link>
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle className="hidden sm:inline-flex" />

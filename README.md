@@ -2,11 +2,11 @@
 
 > **Tu libertad, comienza aquí.**
 
-Plataforma web dedicada para el servicio de transporte universitario **Pancho Bus** de la Universidad San Francisco de Quito. Reservas con QR, tracking en tiempo real, gestión administrativa y analytics con IA — todo en una sola experiencia.
+Plataforma digital para el servicio de transporte universitario **Pancho Bus** de la Universidad San Francisco de Quito. Reservas con QR, seguimiento operativo y gestión administrativa en una sola experiencia.
 
 ## ¿Qué resuelve?
 
-Hoy el servicio Pancho Bus vive embebido como una pestaña en la app general **Finder**, con UX primitiva, registro presencial en oficina PF104, formulario externo OnTrack para reservas y comunicación informal con choferes. Esta plataforma reemplaza ese flujo disperso por una experiencia unificada y autoservicio para los ~9.000 estudiantes USFQ.
+El servicio Pancho Bus necesita una experiencia clara y moderna para reservas, abordaje y comunicación. Esta plataforma reemplaza procesos dispersos por un flujo unificado, verificable y orientado a la operación diaria.
 
 ## Características
 
@@ -16,7 +16,7 @@ Hoy el servicio Pancho Bus vive embebido como una pestaña en la app general **F
 - Reservas con cupos visibles en vivo y lista de espera automática
 - Código QR único por reserva para abordar
 - Buscador por ruta, hora y parada
-- Modo claro/oscuro y multiidioma (es/en/ru)
+- Modo claro/oscuro y experiencia mobile-first
 
 **Administrador**
 - Dashboard con KPIs operativos y alertas
@@ -110,37 +110,11 @@ docs/                 Documentación técnica
 supabase/             Migraciones SQL
 ```
 
-## Cumplimiento de requisitos académicos
-
-Curso: **Desarrollo Web 2 · NRC 3081 · USFQ · Prof. Andrés Eduardo Parra Sánchez**
-
-| Requisito | Implementación |
-|---|---|
-| Landing pública explicativa | `app/page.tsx` |
-| Registro/Login con dominio USFQ | `app/login/`, `app/registro/` con validación regex |
-| Home privado | `app/(student)/inicio/` |
-| Página por ruta (horarios, paradas, mapa) | `app/(student)/rutas/[id]/` |
-| Buscador rutas/horas/paradas | `app/(student)/rutas/` |
-| Esquema BD documentado | `docs/PLAN.md` §3 + `supabase/migrations/` |
-| Trigger `handle_new_user` | `supabase/migrations/0001_init.sql` |
-| Validación correo, Banner, teléfono | `app/registro/page.tsx` |
-| Password ≥ 6 caracteres | Validación cliente + límite Supabase |
-| RLS habilitado con policies | `supabase/migrations/0001_init.sql` |
-| Ruta personal en `usuarios.id_ruta` | Esquema base (mantenido) |
-| Rutas/paradas privadas | Middleware + RLS |
-| Responsive móvil | Tailwind mobile-first, probado |
-| Despliegue Firebase | `apphosting.yaml` + GitHub Actions |
-
 ## Documentación
 
 - `docs/PLAN.md` — Plan completo de arquitectura y desarrollo
 - `AI_CONTEXT.md` — Contexto para asistentes IA que continúen el proyecto
 - `docs/PRESENTACION.md` — Guía para presentar el proyecto
-
-## Equipo
-
-Alexander Kholodov (00332509) · Josué Ponce (00330341)
-Universidad San Francisco de Quito · Cumbayá, Ecuador
 
 ## Contacto del servicio (USFQ)
 
@@ -149,4 +123,4 @@ Universidad San Francisco de Quito · Cumbayá, Ecuador
 
 ## Licencia
 
-Proyecto académico — uso interno USFQ.
+Uso interno USFQ.

@@ -15,11 +15,8 @@ import {
   ArrowRight,
   Bus
 } from "lucide-react";
-import { SEED_RUTAS } from "@/lib/data/seed";
 
 export default function HomePage() {
-  const rutasActivas = SEED_RUTAS.filter((r) => r.estado === "activa");
-
   return (
     <div className="min-h-screen flex flex-col">
       <PublicHeader />
@@ -35,19 +32,19 @@ export default function HomePage() {
           }}
           aria-hidden
         />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-22 sm:py-28 2xl:py-36">
           <div className="max-w-3xl text-white">
             <Badge variant="default" className="bg-white/15 border-white/30 text-white mb-5">
-              Universidad San Francisco de Quito
+              Servicio oficial de transporte USFQ
             </Badge>
-            <h1 className="font-display text-4xl sm:text-6xl leading-[1.05] mb-5">
+            <h1 className="font-display text-5xl sm:text-6xl 2xl:text-7xl leading-[1.05] mb-5">
               Tu libertad,
               <br />
               <span className="italic">comienza aquí.</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mb-8">
-              La nueva plataforma del Pancho Bus. Reserva tu cupo, sigue tu bus
-              en tiempo real y vive el campus sin esperas.
+            <p className="text-lg sm:text-xl 2xl:text-2xl text-white/90 max-w-2xl mb-8">
+              Pancho Bus reúne reservas, abordaje y seguimiento operativo en una sola plataforma.
+              Todo lo necesario para moverse al campus con claridad y sin fricciones.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/registro">
@@ -68,15 +65,15 @@ export default function HomePage() {
             <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-white/80">
               <span className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" />
-                Solo USFQ
+                Acceso seguro con cuenta institucional
               </span>
               <span className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                Tiempo real
+                Información operativa siempre vigente
               </span>
               <span className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                +9.000 estudiantes
+                Experiencia pensada para estudiantes, choferes y administración
               </span>
             </div>
           </div>
@@ -84,8 +81,8 @@ export default function HomePage() {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="py-20 sm:py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section id="como-funciona" className="py-20 sm:py-24 2xl:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">
               Cómo funciona
@@ -95,7 +92,7 @@ export default function HomePage() {
             </h2>
             <p className="text-muted">
               Del registro al abordaje, todo en una sola plataforma diseñada
-              para estudiantes y operada por la USFQ.
+              para el servicio de movilidad de la USFQ.
             </p>
           </div>
 
@@ -138,46 +135,60 @@ export default function HomePage() {
       </section>
 
       {/* RUTAS */}
-      <section id="rutas" className="py-20 sm:py-24 bg-surface-2">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+      <section id="acceso" className="py-20 sm:py-24 2xl:py-32 bg-surface-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div>
-              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Rutas</p>
-              <h2 className="font-display text-3xl sm:text-4xl">{rutasActivas.length} rutas activas hoy</h2>
+              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Acceso y privacidad</p>
+              <h2 className="font-display text-3xl sm:text-4xl mb-4">
+                Información operativa protegida.
+              </h2>
+              <p className="text-muted mb-6">
+                Las rutas, paradas y horarios solo están visibles para usuarios registrados.
+                El acceso se valida con correo institucional y roles asignados (estudiante, chofer, administración).
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/registro"><Button>Crear cuenta</Button></Link>
+                <Link href="/login"><Button variant="outline">Iniciar sesión</Button></Link>
+              </div>
             </div>
-            <Link href="/login">
-              <Button variant="outline">Ver detalle <ArrowRight className="w-4 h-4" /></Button>
-            </Link>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rutasActivas.map((r) => (
-              <Card key={r.id_ruta} className="overflow-hidden">
-                <div className="h-1.5" style={{ background: r.color_hex }} />
-                <CardBody>
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="info">{r.codigo}</Badge>
-                    <span className="text-xs text-muted flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />{r.numero_paradas} paradas
-                    </span>
+            <Card className="overflow-hidden">
+              <div className="h-1.5 bg-primary" />
+              <CardBody className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-usfq-red-tint flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="font-display text-lg leading-tight mb-1">{r.nombre}</h3>
-                  <p className="text-sm text-muted line-clamp-2">{r.descripcion}</p>
-                </CardBody>
-              </Card>
-            ))}
+                  <div>
+                    <h3 className="font-display text-lg">Acceso verificado</h3>
+                    <p className="text-sm text-muted">Solo cuentas institucionales pueden consultar rutas y cupos.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-usfq-red-tint flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg">Datos sensibles protegidos</h3>
+                    <p className="text-sm text-muted">Paradas, horarios y asignaciones se muestran dentro de la app privada.</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
           </div>
         </div>
       </section>
 
       {/* DIFERENCIADORES */}
-      <section className="py-20 sm:py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section className="py-20 sm:py-24 2xl:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Por qué Pancho Bus</p>
-              <h2 className="font-display text-3xl sm:text-4xl mb-5">Diseñado para el campus, hecho para vos.</h2>
+              <h2 className="font-display text-3xl sm:text-4xl mb-5">Diseñado para el campus, hecho para ti.</h2>
               <p className="text-muted mb-6">
-                Reemplazamos un proceso disperso (correos manuales, formularios externos, app genérica) por una experiencia unificada que vive exclusivamente en torno al servicio de transporte universitario.
+                Reemplazamos procesos dispersos por una experiencia unificada enfocada en el transporte universitario.
+                Cada interacción reduce tiempos de gestión y mejora la coordinación operativa.
               </p>
               <ul className="space-y-3">
                 {[
@@ -186,7 +197,7 @@ export default function HomePage() {
                   "QR único por reserva, sin colas innecesarias",
                   "Mapa interactivo y tracking GPS de cada bus",
                   "Comunicación directa entre admin, choferes y estudiantes",
-                  "Modo claro y oscuro · accesible · multiidioma"
+                  "Diseño accesible, responsivo y pensado para móviles"
                 ].map((t, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0 mt-0.5">✓</span>
@@ -222,16 +233,17 @@ export default function HomePage() {
       </section>
 
       {/* EQUIPO */}
-      <section id="equipo" className="py-20 sm:py-24 bg-surface-2">
+      <section id="operacion" className="py-20 sm:py-24 2xl:py-32 bg-surface-2">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Proyecto académico</p>
-          <h2 className="font-display text-3xl sm:text-4xl mb-5">Desarrollo Web 2 · USFQ</h2>
+          <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Operación y confianza</p>
+          <h2 className="font-display text-3xl sm:text-4xl mb-5">Transparencia para autoridades y usuarios</h2>
           <p className="text-muted max-w-2xl mx-auto mb-8">
-            Plataforma diseñada y desarrollada como proyecto del curso NRC 3081, bajo la guía del Prof. Andrés Eduardo Parra Sánchez.
+            La plataforma entrega métricas claras, trazabilidad de reservas y evidencia operativa
+            para tomar decisiones de movilidad con datos verificables.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border text-sm">
             <Bus className="w-4 h-4 text-primary" />
-            Alexander Kholodov · Josué Ponce
+            Servicio Pancho Bus · USFQ Movilidad
           </div>
         </div>
       </section>

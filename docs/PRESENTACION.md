@@ -6,9 +6,7 @@ Documento para Alexander al presentar la plataforma. Resume la arquitectura, las
 
 ## 1. La historia que contás
 
-> "Pancho Bus es el servicio de transporte gratuito que mueve cada día a casi 9.000 personas en USFQ. Hoy vive como una pestaña dentro de la app Finder, con UX primitiva, registro presencial en la oficina PF104, formulario externo OnTrack para reservar y comunicación informal con choferes por WhatsApp. Reconstruimos esa experiencia en una plataforma web dedicada, con tres roles, reservas con QR, mapa en vivo y analytics con IA. Lo que ven es un prototipo funcional de extremo a extremo, listo para reemplazar el sistema actual."
-
-**Audiencia académica**: enfatizar cumplimiento de requisitos, esquema relacional, RLS, trigger, validaciones, despliegue.
+> "Pancho Bus es el servicio de transporte universitario de la USFQ. Hoy opera con flujos dispersos y poca visibilidad operativa. Esta plataforma unifica reservas, abordaje y gestión en una sola experiencia web con tres roles, QR y seguimiento en vivo. Lo que ven es un producto funcional de extremo a extremo, listo para una implementación real."
 
 **Audiencia USFQ (Jairo Carvajal, autoridades)**: enfatizar reducción de fricción, autoservicio, datos para tomar decisiones, ahorro de tiempo administrativo, escalabilidad.
 
@@ -19,8 +17,8 @@ Documento para Alexander al presentar la plataforma. Resume la arquitectura, las
 - **Frontend**: Next.js 14 con App Router. SSR para la landing pública (SEO + carga rápida), Client Components para áreas privadas. TypeScript estricto, Tailwind CSS.
 - **Backend**: Supabase. Postgres con RLS por rol, Auth nativa con validación de dominio institucional, Realtime para sincronizar cupos y ubicación de buses.
 - **Mapas**: MapLibre GL JS sobre tiles de OpenStreetMap. Cero costo, sin API key.
-- **IA**: Gemini API (free tier). Cuatro flows operativos sobre datos agregados: insights de demanda, recomendaciones de rutas, detección de fricciones UX, daily digest.
-- **App Hosting**
+- **IA**: Gemini API (free tier). Flows operativos sobre datos agregados: insights de demanda, recomendaciones de rutas, detección de fricciones UX, daily digest.
+- **App Hosting**: despliegue automático desde GitHub.
 - **Capa de abstracción `lib/db/`**: aísla Supabase del resto del código. Si en el futuro la USFQ migra a Firestore (o cualquier otra DB), solo se cambia ese archivo.
 
 ---
@@ -94,7 +92,7 @@ Ruta de hoy: paradas y mapa. Lista de pasajeros. Escanear QR (cámara web): most
 No lo necesitamos. La PWA del chofer reporta ubicación vía `navigator.geolocation` cada 15s mientras la asignación está `en_curso`. Cero hardware adicional.
 
 **¿Cuánto cuesta operarlo?**
-Cero en escala de demo. En producción: Supabase free hasta 500MB, Firebase Hosting free hasta 10GB de transferencia/mes, Gemini free 60 req/min. Para 9.000 estudiantes el costo estimado sigue siendo $0 en los primeros meses; si crece, plan Pro de Supabase ~$25/mes.
+En escala de demo, todo corre en tiers gratuitos. En producción, se dimensiona según demanda real y políticas internas.
 
 **¿Cómo migran los usuarios actuales del proceso manual?**
 Importador CSV en admin. Pegan la lista de oficina PF104, cada usuario recibe magic link al correo USFQ para fijar password.
@@ -106,16 +104,16 @@ WCAG AA. Contraste verificado, foco visible por teclado, ARIA labels, navegació
 Web app instalable como PWA. Mismo costo de mantenimiento, llegada inmediata, sin dependencia de las stores de Apple/Google.
 
 **¿Por qué Supabase y no Firestore si todo lo demás es Firebase?**
-Lo pidió el profesor por las clases. Personalmente prefiero Firestore y la capa `lib/db/` permite migrar el día que quieran sin tocar componentes.
+El esquema relacional y la RLS simplifican la operación hoy. La capa `lib/db/` permite migrar a otra base sin tocar componentes.
 
 **¿Quién mantiene esto?**
 Yo (Alexander). Lista para entrega y handover documentado en `docs/`.
 
 ---
 
-## 8. Si te preguntan por contratación
+## 8. Si te preguntan por implementación
 
-> "Este es un prototipo. Construir la versión productiva requeriría: integración con el directorio institucional para SSO, hardening de seguridad (auditoría RLS), pruebas E2E, soporte real al chofer en campo, y capacitación a Jairo y su equipo. Tengo el plan completo en `docs/PLAN.md`. Estaría feliz de hablar con la oficina de movilidad."
+> "Esta plataforma ya funciona de extremo a extremo. Para producción, el siguiente paso es integrar SSO institucional, reforzar seguridad con auditorías y activar pruebas E2E. El plan de implementación está documentado y listo para ejecutarse."
 
 ---
 

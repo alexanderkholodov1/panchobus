@@ -10,27 +10,7 @@ import { db } from "@/lib/db";
 import { useSession } from "@/components/providers/demo-session";
 import type { Asignacion, Reserva, Ruta } from "@/lib/types";
 import { Clock, MapPin, CalendarCheck, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
-
-function QRDisplay({ token, color }: { token: string; color: string }) {
-  const size = 21;
-  const cells: boolean[][] = Array.from({ length: size }, (_, row) =>
-    Array.from({ length: size }, (_, col) => {
-      if (row < 7 && col < 7) return true;
-      if (row < 7 && col >= size - 7) return true;
-      if (row >= size - 7 && col < 7) return true;
-      const idx = row * size + col;
-      const ch = token.charCodeAt(idx % token.length);
-      return (ch + row + col) % 3 !== 0;
-    })
-  );
-  return (
-    <div className="p-4 bg-white rounded-2xl shadow-inner inline-block">
-      <svg viewBox={`0 0 ${size} ${size}`} width="200" height="200" shapeRendering="crispEdges">
-        {cells.map((row, r) => row.map((on, c) => on ? <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} fill={color} /> : null))}
-      </svg>
-    </div>
-  );
-}
+import QRCode from "qrcode";
 
 export default function MiQrPage() {
   const { user } = useSession();
@@ -38,6 +18,7 @@ export default function MiQrPage() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const load = () => {
     if (!user) return;
@@ -62,6 +43,22 @@ export default function MiQrPage() {
   const asg = asignaciones.find((a) => a.id_asignacion === reserva?.id_asignacion);
   const ruta = rutas.find((r) => r.id_ruta === asg?.id_ruta);
   const isHoy = asg?.fecha === new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    const token = reserva?.qr_token;
+    if (!token) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(token, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      scale: 8,
+      color: {
+        dark: ruta?.color_hex ?? "#111111",
+        light: "#FFFFFF"
+      }
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch(() => setQrDataUrl(null));
+  }, [reserva?.qr_token, ruta?.color_hex]);
 
   return (
     <AppShell role="estudiante">
@@ -108,7 +105,15 @@ export default function MiQrPage() {
                       : <><Clock className="w-3.5 h-3.5" /> En espera</>}
                   </Badge>
                   <div className={`transition-all ${!isHoy ? "opacity-60 grayscale" : ""}`}>
-                    <QRDisplay token={reserva.qr_token} color={ruta?.color_hex ?? "#E11B22"} />
+                    {qrDataUrl ? (
+                      <div className="p-4 bg-white rounded-2xl shadow-inner inline-block">
+                        <img src={qrDataUrl} alt="QR de reserva" width={200} height={200} className="block" />
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-white rounded-2xl shadow-inner inline-block text-xs text-muted">
+                        Generando QR...
+                      </div>
+                    )}
                   </div>
                   {!isHoy && (
                     <div className="bg-state-warn/10 text-state-warn text-xs px-3 py-2 rounded-lg flex items-center gap-1.5">
