@@ -142,20 +142,13 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
             <div>
-              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">
-                Rutas
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl">
-                {rutasActivas.length} rutas activas hoy
-              </h2>
+              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Rutas</p>
+              <h2 className="font-display text-3xl sm:text-4xl">{rutasActivas.length} rutas activas hoy</h2>
             </div>
             <Link href="/login">
-              <Button variant="outline">
-                Ver detalle <ArrowRight className="w-4 h-4" />
-              </Button>
+              <Button variant="outline">Ver detalle <ArrowRight className="w-4 h-4" /></Button>
             </Link>
           </div>
-
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {rutasActivas.map((r) => (
               <Card key={r.id_ruta} className="overflow-hidden">
@@ -164,13 +157,10 @@ export default function HomePage() {
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant="info">{r.codigo}</Badge>
                     <span className="text-xs text-muted flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {r.numero_paradas} paradas
+                      <MapPin className="w-3 h-3" />{r.numero_paradas} paradas
                     </span>
                   </div>
-                  <h3 className="font-display text-lg leading-tight mb-1">
-                    {r.nombre}
-                  </h3>
+                  <h3 className="font-display text-lg leading-tight mb-1">{r.nombre}</h3>
                   <p className="text-sm text-muted line-clamp-2">{r.descripcion}</p>
                 </CardBody>
               </Card>
@@ -184,16 +174,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">
-                Por qué Pancho Bus
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl mb-5">
-                Diseñado para el campus, hecho para vos.
-              </h2>
+              <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Por qué Pancho Bus</p>
+              <h2 className="font-display text-3xl sm:text-4xl mb-5">Diseñado para el campus, hecho para vos.</h2>
               <p className="text-muted mb-6">
-                Reemplazamos un proceso disperso (correos manuales, formularios
-                externos, app genérica) por una experiencia unificada que vive
-                exclusivamente en torno al servicio de transporte universitario.
+                Reemplazamos un proceso disperso (correos manuales, formularios externos, app genérica) por una experiencia unificada que vive exclusivamente en torno al servicio de transporte universitario.
               </p>
               <ul className="space-y-3">
                 {[
@@ -205,9 +189,7 @@ export default function HomePage() {
                   "Modo claro y oscuro · accesible · multiidioma"
                 ].map((t, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0 mt-0.5">
-                      ✓
-                    </span>
+                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0 mt-0.5">✓</span>
                     <span className="text-sm">{t}</span>
                   </li>
                 ))}
@@ -218,13 +200,9 @@ export default function HomePage() {
                 <Sparkles className="w-5 h-5" />
                 <span className="text-sm font-medium">Insights con IA</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl mb-3">
-                Decisiones operativas basadas en datos.
-              </h3>
+              <h3 className="font-display text-2xl sm:text-3xl mb-3">Decisiones operativas basadas en datos.</h3>
               <p className="text-white/90 mb-6">
-                El panel administrativo incluye análisis automatizado con IA:
-                detecta rutas saturadas, recomienda nuevos horarios y anticipa
-                problemas antes de que escalen.
+                El panel administrativo incluye análisis automatizado con IA: detecta rutas saturadas, recomienda nuevos horarios y anticipa problemas antes de que escalen.
               </p>
               <div className="space-y-3 text-sm">
                 {[
@@ -233,12 +211,8 @@ export default function HomePage() {
                   "Detección de fricciones UX",
                   "Resumen ejecutivo diario por correo"
                 ].map((t) => (
-                  <div
-                    key={t}
-                    className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {t}
+                  <div key={t} className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
+                    <Sparkles className="w-3.5 h-3.5" />{t}
                   </div>
                 ))}
               </div>
@@ -250,16 +224,10 @@ export default function HomePage() {
       {/* EQUIPO */}
       <section id="equipo" className="py-20 sm:py-24 bg-surface-2">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">
-            Proyecto académico
-          </p>
-          <h2 className="font-display text-3xl sm:text-4xl mb-5">
-            Desarrollo Web 2 · USFQ
-          </h2>
+          <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Proyecto académico</p>
+          <h2 className="font-display text-3xl sm:text-4xl mb-5">Desarrollo Web 2 · USFQ</h2>
           <p className="text-muted max-w-2xl mx-auto mb-8">
-            Plataforma diseñada y desarrollada como proyecto del curso NRC 3081, bajo
-            la guía del Prof. Andrés Eduardo Parra Sánchez. Construida para
-            demostrar lo que el servicio Pancho Bus puede llegar a ser.
+            Plataforma diseñada y desarrollada como proyecto del curso NRC 3081, bajo la guía del Prof. Andrés Eduardo Parra Sánchez.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border text-sm">
             <Bus className="w-4 h-4 text-primary" />
@@ -268,26 +236,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA FINAL */}
+      {/* CTA */}
       <section className="py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">
-            Súmate al nuevo Pancho Bus.
-          </h2>
-          <p className="text-muted mb-6">
-            Una sola plataforma. Tres experiencias. Todo el campus, conectado.
-          </p>
+          <h2 className="font-display text-3xl sm:text-4xl mb-4">Súmate al nuevo Pancho Bus.</h2>
+          <p className="text-muted mb-6">Una sola plataforma. Tres experiencias. Todo el campus, conectado.</p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/registro">
-              <Button size="lg">
-                Empezar ahora <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline">
-                Iniciar sesión
-              </Button>
-            </Link>
+            <Link href="/registro"><Button size="lg">Empezar ahora <ArrowRight className="w-4 h-4" /></Button></Link>
+            <Link href="/login"><Button size="lg" variant="outline">Iniciar sesión</Button></Link>
           </div>
         </div>
       </section>

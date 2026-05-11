@@ -19,15 +19,13 @@ import {
   Users,
   MessageSquare,
   Sparkles,
-  Settings2,
   Camera,
   Navigation,
   ListChecks,
   Route as RouteIcon,
   ChevronDown
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 type NavItem = { href: string; label: string; icon: typeof Home };
 

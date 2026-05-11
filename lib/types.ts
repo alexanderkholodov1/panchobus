@@ -1,17 +1,9 @@
-// Tipos centrales del dominio Pancho Bus.
-// Se usan en toda la app y son la "fuente de verdad" para mocks y Supabase.
-
 export type Role = "estudiante" | "admin" | "chofer";
 export type UserStatus = "pendiente" | "activo" | "suspendido";
 export type RouteStatus = "activa" | "inactiva" | "suspendida";
 export type BusStatus = "disponible" | "mantenimiento" | "fuera_servicio";
 export type AssignmentStatus = "programada" | "en_curso" | "completada" | "cancelada";
-export type ReservationStatus =
-  | "confirmada"
-  | "en_espera"
-  | "cancelada"
-  | "usada"
-  | "no_show";
+export type ReservationStatus = "confirmada" | "en_espera" | "cancelada" | "usada" | "no_show";
 
 export interface Usuario {
   id_usuario: string;
@@ -32,7 +24,7 @@ export interface Usuario {
 export interface Parada {
   id_parada: number;
   nombre: string;
-  hora_salida: string; // "HH:MM"
+  hora_salida: string;
   hora_regreso: string;
   latitud: number;
   longitud: number;
@@ -71,7 +63,7 @@ export interface Asignacion {
   id_ruta: number;
   id_bus: string;
   id_chofer: string;
-  fecha: string; // YYYY-MM-DD
+  fecha: string;
   hora_salida: string;
   hora_regreso: string;
   estado: AssignmentStatus;
@@ -120,7 +112,6 @@ export interface Evento {
   created_at: string;
 }
 
-/** Sesión simplificada (demo) */
 export interface DemoSession {
   user: Usuario | null;
   isAuthenticated: boolean;

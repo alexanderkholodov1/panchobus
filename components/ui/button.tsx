@@ -8,18 +8,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
-  asChild?: boolean;
 }
 
 const variants: Record<Variant, string> = {
-  primary:
-    "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] shadow-sm",
-  secondary:
-    "bg-surface-2 text-foreground hover:bg-border/40 border border-border",
+  primary: "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] shadow-sm",
+  secondary: "bg-surface-2 text-foreground hover:bg-border/40 border border-border",
   ghost: "hover:bg-surface-2 text-foreground",
   outline: "border border-border text-foreground hover:bg-surface-2",
-  danger:
-    "bg-state-error text-white hover:opacity-90 active:scale-[0.98] shadow-sm"
+  danger: "bg-state-error text-white hover:opacity-90 active:scale-[0.98] shadow-sm"
 };
 
 const sizes: Record<Size, string> = {
@@ -35,18 +31,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       disabled={disabled || loading}
       className={cn(
         "inline-flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap",
-        variants[variant],
-        sizes[size],
-        className
+        variants[variant], sizes[size], className
       )}
       {...props}
     >
-      {loading && (
-        <span
-          className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin"
-          aria-hidden
-        />
-      )}
+      {loading && <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden />}
       {children}
     </button>
   )

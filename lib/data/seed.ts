@@ -260,7 +260,7 @@ export const SEED_USUARIOS: Usuario[] = [
     tema: "system",
     created_at: "2025-08-01T08:00:00Z"
   },
-  // Estudiantes ficticios (para que listas en admin no se vean vacías)
+  // Estudiantes ficticios
   {
     id_usuario: "stu-002",
     nombre: "María Pérez",
