@@ -39,7 +39,8 @@ export default function AdminMensajesPage() {
       destinatario_id: form.destinatario_id || null,
       destinatario_ruta: form.destinatario_ruta ? Number(form.destinatario_ruta) : null,
       asunto: form.asunto,
-      cuerpo: form.cuerpo
+      cuerpo: form.cuerpo,
+      leido: false,
     });
     toast({ title:"Mensaje enviado", variant:"success" });
     setSending(false);

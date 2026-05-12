@@ -19,6 +19,20 @@ const IS_SUPABASE =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+// Credenciales de los usuarios demo en Supabase (password fijo: demo1234)
+const ROLE_DEMO_CREDENTIALS: Record<string, string> = {
+  estudiante: "akholodov@estud.usfq.edu.ec",
+  admin:      "jcarvajal@usfq.edu.ec",
+  chofer:     "cmendoza@usfq.edu.ec",
+};
+
+// IDs en el store local (demo mode sin Supabase)
+const ROLE_DEMO_IDS: Record<string, string> = {
+  estudiante: "demo-student",
+  admin:      "demo-admin",
+  chofer:     "demo-driver",
+};
+
 interface SessionContextType {
   user: Usuario | null;
   isLoading: boolean;
@@ -31,11 +45,6 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | null>(null);
 const STORAGE_KEY = "panchobus-session-userid";
-const ROLE_DEMO_IDS: Record<string, string> = {
-  estudiante: "demo-student",
-  admin: "demo-admin",
-  chofer: "demo-driver"
-};
 
 // ── Helpers Supabase ──────────────────────────────────────────
 function getSupabaseClient() {
@@ -62,7 +71,6 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (IS_SUPABASE) {
       const supabase = getSupabaseClient();
-      // Obtener sesión inicial
       supabase.auth.getSession().then(({ data: { session } }: any) => {
         if (session?.user) {
           loadProfile(session.user.id).finally(() => setIsLoading(false));
@@ -70,7 +78,6 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
           setIsLoading(false);
         }
       });
-      // Escuchar cambios de auth
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (_event: string, session: any) => {
           if (session?.user) {
@@ -86,6 +93,26 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
       // Demo mode
       const id = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
       loadProfile(id).finally(() => setIsLoading(false));
+    }
+  }, [loadProfile]);
+
+  // ── Login por rol (demo) ───────────────────────────────────
+  // En Supabase: autentica con las credenciales del usuario demo (password: demo1234)
+  // En demo local: carga el perfil por ID hardcodeado
+  const loginAs = useCallback(async (role: "estudiante" | "admin" | "chofer") => {
+    if (IS_SUPABASE) {
+      const supabase = getSupabaseClient();
+      const email = ROLE_DEMO_CREDENTIALS[role];
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: "demo1234",
+      });
+      if (error) throw new Error(error.message);
+      if (data.user) await loadProfile(data.user.id);
+    } else {
+      const id = ROLE_DEMO_IDS[role];
+      localStorage.setItem(STORAGE_KEY, id);
+      await loadProfile(id);
     }
   }, [loadProfile]);
 
@@ -107,7 +134,7 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
     localStorage.setItem(STORAGE_KEY, u.id_usuario);
     setUser(u);
     return u;
-  }, [loadProfile]);
+  }, []);
 
   // ── Registro ───────────────────────────────────────────────
   const register = useCallback(async (
@@ -126,14 +153,13 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
             telefono: data.telefono ?? "",
             direccion: data.direccion ?? "",
             id_ruta: data.id_ruta ? String(data.id_ruta) : "",
-            rol: "estudiante"
-          }
-        }
+            rol: "estudiante",
+          },
+        },
       });
       if (error) throw new Error(error.message);
       if (!authData.user) throw new Error("Error al crear la cuenta.");
-      // El trigger handle_new_user ya creó la fila en public.usuarios.
-      // Esperamos un momento y cargamos el perfil.
+      // El trigger handle_new_user crea la fila en public.usuarios
       await new Promise((r) => setTimeout(r, 800));
       const u = await db.getUsuario(authData.user.id);
       if (u) { setUser(u); return u; }
@@ -148,7 +174,7 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
         id_ruta: data.id_ruta ?? null,
         rol: "estudiante",
         estado: "activo",
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
       setUser(fallback);
       return fallback;
@@ -165,21 +191,13 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
       id_ruta: data.id_ruta ?? null,
       rol: "estudiante",
       estado: "activo",
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
     await db.addUsuario(nuevo);
     localStorage.setItem(STORAGE_KEY, id);
     setUser(nuevo);
     return nuevo;
   }, []);
-
-  // ── Demo login por rol ─────────────────────────────────────
-  const loginAs = useCallback(async (role: "estudiante" | "admin" | "chofer") => {
-    // Solo disponible en demo mode
-    const id = ROLE_DEMO_IDS[role];
-    localStorage.setItem(STORAGE_KEY, id);
-    await loadProfile(id);
-  }, [loadProfile]);
 
   // ── Logout ─────────────────────────────────────────────────
   const logout = useCallback(() => {

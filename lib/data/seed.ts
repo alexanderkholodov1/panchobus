@@ -338,14 +338,14 @@ export const SEED_USUARIOS: Usuario[] = [
 // BUSES
 // ============================================================
 export const SEED_BUSES: Bus[] = [
-  { id_bus: "bus-1", placa: "PFA-1234", modelo: "Hino AK 2018", capacidad: 32, estado: "disponible", id_chofer_asignado: "demo-driver" },
-  { id_bus: "bus-2", placa: "PFC-5678", modelo: "Mercedes O500 2019", capacidad: 40, estado: "disponible", id_chofer_asignado: "drv-002" },
-  { id_bus: "bus-3", placa: "PFE-9012", modelo: "Hino AK 2020", capacidad: 36, estado: "disponible", id_chofer_asignado: "drv-003" },
-  { id_bus: "bus-4", placa: "PFG-3456", modelo: "Volkswagen 17.230 2017", capacidad: 36, estado: "disponible", id_chofer_asignado: null },
-  { id_bus: "bus-5", placa: "PFH-7890", modelo: "Hino AK 2021", capacidad: 32, estado: "disponible", id_chofer_asignado: null },
-  { id_bus: "bus-6", placa: "PFJ-1122", modelo: "Mercedes OF1721 2018", capacidad: 28, estado: "disponible", id_chofer_asignado: null },
-  { id_bus: "bus-7", placa: "PFK-3344", modelo: "Hino AK 2019", capacidad: 32, estado: "mantenimiento", id_chofer_asignado: null },
-  { id_bus: "bus-8", placa: "PFL-5566", modelo: "Volkswagen 17.230 2020", capacidad: 36, estado: "fuera_servicio", id_chofer_asignado: null }
+  { id_bus: 1, placa: "PFA-1234", modelo: "Hino AK 2018",           capacidad: 32, estado: "activo" },
+  { id_bus: 2, placa: "PFC-5678", modelo: "Mercedes O500 2019",     capacidad: 40, estado: "activo" },
+  { id_bus: 3, placa: "PFE-9012", modelo: "Hino AK 2020",           capacidad: 36, estado: "activo" },
+  { id_bus: 4, placa: "PFG-3456", modelo: "Volkswagen 17.230 2017", capacidad: 36, estado: "activo" },
+  { id_bus: 5, placa: "PFH-7890", modelo: "Hino AK 2021",           capacidad: 32, estado: "activo" },
+  { id_bus: 6, placa: "PFJ-1122", modelo: "Mercedes OF1721 2018",   capacidad: 28, estado: "activo" },
+  { id_bus: 7, placa: "PFK-3344", modelo: "Hino AK 2019",           capacidad: 32, estado: "mantenimiento" },
+  { id_bus: 8, placa: "PFL-5566", modelo: "Volkswagen 17.230 2020", capacidad: 36, estado: "inactivo" },
 ];
 
 // ============================================================
@@ -360,16 +360,16 @@ const dateStr = (offsetDays: number) => {
 
 export const SEED_ASIGNACIONES: Asignacion[] = [
   // Hoy
-  { id_asignacion: "asg-1", id_ruta: 1, id_bus: "bus-1", id_chofer: "demo-driver", fecha: dateStr(0), hora_salida: "06:15", hora_regreso: "17:30", estado: "en_curso", cupos_disponibles: 32, cupos_reservados: 24 },
-  { id_asignacion: "asg-2", id_ruta: 2, id_bus: "bus-2", id_chofer: "drv-002", fecha: dateStr(0), hora_salida: "06:00", hora_regreso: "17:25", estado: "completada", cupos_disponibles: 40, cupos_reservados: 38 },
-  { id_asignacion: "asg-3", id_ruta: 3, id_bus: "bus-3", id_chofer: "drv-003", fecha: dateStr(0), hora_salida: "05:50", hora_regreso: "17:15", estado: "programada", cupos_disponibles: 36, cupos_reservados: 19 },
-  { id_asignacion: "asg-4", id_ruta: 4, id_bus: "bus-4", id_chofer: "demo-driver", fecha: dateStr(0), hora_salida: "05:45", hora_regreso: "17:15", estado: "programada", cupos_disponibles: 36, cupos_reservados: 28 },
-  { id_asignacion: "asg-5", id_ruta: 5, id_bus: "bus-5", id_chofer: "drv-002", fecha: dateStr(0), hora_salida: "06:10", hora_regreso: "17:15", estado: "programada", cupos_disponibles: 32, cupos_reservados: 12 },
+  { id_asignacion: 1, id_ruta: 1, id_bus: 1, id_chofer: "demo-student", fecha: dateStr(0), hora_salida: "06:15", hora_regreso: "17:30", estado: "en_curso",   cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 24 },
+  { id_asignacion: 2, id_ruta: 2, id_bus: 2, id_chofer: "drv-002",      fecha: dateStr(0), hora_salida: "06:00", hora_regreso: "17:25", estado: "completada", cupos_totales: 40, cupos_disponibles: 40, cupos_reservados: 38 },
+  { id_asignacion: 3, id_ruta: 3, id_bus: 3, id_chofer: "drv-003",      fecha: dateStr(0), hora_salida: "05:50", hora_regreso: "17:15", estado: "programada", cupos_totales: 36, cupos_disponibles: 36, cupos_reservados: 19 },
+  { id_asignacion: 4, id_ruta: 4, id_bus: 4, id_chofer: "demo-driver",  fecha: dateStr(0), hora_salida: "05:45", hora_regreso: "17:15", estado: "programada", cupos_totales: 36, cupos_disponibles: 36, cupos_reservados: 28 },
+  { id_asignacion: 5, id_ruta: 5, id_bus: 5, id_chofer: "drv-002",      fecha: dateStr(0), hora_salida: "06:10", hora_regreso: "17:15", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 12 },
   // Mañana
-  { id_asignacion: "asg-6", id_ruta: 1, id_bus: "bus-1", id_chofer: "demo-driver", fecha: dateStr(1), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_disponibles: 32, cupos_reservados: 30 },
-  { id_asignacion: "asg-7", id_ruta: 2, id_bus: "bus-2", id_chofer: "drv-002", fecha: dateStr(1), hora_salida: "06:00", hora_regreso: "17:25", estado: "programada", cupos_disponibles: 40, cupos_reservados: 32 },
+  { id_asignacion: 6, id_ruta: 1, id_bus: 1, id_chofer: "demo-driver",  fecha: dateStr(1), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 30 },
+  { id_asignacion: 7, id_ruta: 2, id_bus: 2, id_chofer: "drv-002",      fecha: dateStr(1), hora_salida: "06:00", hora_regreso: "17:25", estado: "programada", cupos_totales: 40, cupos_disponibles: 40, cupos_reservados: 32 },
   // Pasado mañana
-  { id_asignacion: "asg-8", id_ruta: 1, id_bus: "bus-1", id_chofer: "demo-driver", fecha: dateStr(2), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_disponibles: 32, cupos_reservados: 8 }
+  { id_asignacion: 8, id_ruta: 1, id_bus: 1, id_chofer: "demo-driver",  fecha: dateStr(2), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 8  },
 ];
 
 // ============================================================
@@ -377,48 +377,48 @@ export const SEED_ASIGNACIONES: Asignacion[] = [
 // ============================================================
 export const SEED_RESERVAS: Reserva[] = [
   {
-    id_reserva: "rsv-1",
+    id_reserva: 1,
     id_usuario: "demo-student",
-    id_asignacion: "asg-1",
+    id_asignacion: 1,
     estado: "confirmada",
-    qr_token: "DEMO-QR-asg-1-demo-student-x7k2",
+    qr_token: "DEMO-QR-1-demo-student-x7k2",
     created_at: new Date(Date.now() - 86400000).toISOString(),
     observaciones: "Ruta de ida"
   },
   {
-    id_reserva: "rsv-2",
+    id_reserva: 2,
     id_usuario: "demo-student",
-    id_asignacion: "asg-6",
+    id_asignacion: 6,
     estado: "confirmada",
-    qr_token: "DEMO-QR-asg-6-demo-student-m9p3",
+    qr_token: "DEMO-QR-6-demo-student-m9p3",
     created_at: new Date(Date.now() - 43200000).toISOString()
   },
   {
-    id_reserva: "rsv-3",
+    id_reserva: 3,
     id_usuario: "stu-002",
-    id_asignacion: "asg-1",
+    id_asignacion: 1,
     estado: "usada",
-    qr_token: "DEMO-QR-asg-1-stu-002-h2x1",
+    qr_token: "DEMO-QR-1-stu-002-h2x1",
     qr_escaneado_at: new Date(Date.now() - 7200000).toISOString(),
     qr_escaneado_por: "demo-driver",
     created_at: new Date(Date.now() - 172800000).toISOString()
   },
   {
-    id_reserva: "rsv-4",
+    id_reserva: 4,
     id_usuario: "stu-003",
-    id_asignacion: "asg-2",
+    id_asignacion: 2,
     estado: "usada",
-    qr_token: "DEMO-QR-asg-2-stu-003-q4t7",
+    qr_token: "DEMO-QR-2-stu-003-q4t7",
     qr_escaneado_at: new Date(Date.now() - 21600000).toISOString(),
     qr_escaneado_por: "drv-002",
     created_at: new Date(Date.now() - 86400000).toISOString()
   },
   {
-    id_reserva: "rsv-5",
+    id_reserva: 5,
     id_usuario: "stu-005",
-    id_asignacion: "asg-4",
+    id_asignacion: 4,
     estado: "confirmada",
-    qr_token: "DEMO-QR-asg-4-stu-005-w8r2",
+    qr_token: "DEMO-QR-4-stu-005-w8r2",
     created_at: new Date(Date.now() - 10800000).toISOString()
   }
 ];
@@ -428,28 +428,30 @@ export const SEED_RESERVAS: Reserva[] = [
 // ============================================================
 export const SEED_MENSAJES: Mensaje[] = [
   {
-    id_mensaje: "msg-1",
+    id_mensaje: 1,
     remitente_id: "demo-admin",
     destinatario_id: "demo-driver",
     asunto: "Cambio de horario viernes",
     cuerpo: "Carlos, el viernes salimos 10 min antes (06:05) por la marcha en Av. Interoceánica. Avisa a los pasajeros por favor.",
+    leido: false,
     created_at: new Date(Date.now() - 3600000).toISOString()
   },
   {
-    id_mensaje: "msg-2",
+    id_mensaje: 2,
     remitente_id: "demo-admin",
     destinatario_ruta: 1,
     asunto: "Atención ruta Lumbisí",
     cuerpo: "Esta semana habrá obras en Diego de Robles. Tomar previsiones, salida normal a las 06:15.",
+    leido: false,
     created_at: new Date(Date.now() - 7200000).toISOString()
   },
   {
-    id_mensaje: "msg-3",
+    id_mensaje: 3,
     remitente_id: "demo-driver",
     destinatario_id: "demo-admin",
     asunto: "Re: Cambio de horario viernes",
     cuerpo: "Entendido Jairo, listo, ya avisé al grupo.",
-    leido_at: new Date(Date.now() - 1800000).toISOString(),
+    leido: true,
     created_at: new Date(Date.now() - 1800000).toISOString()
   }
 ];

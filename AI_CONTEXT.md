@@ -186,79 +186,79 @@ Para resetear a estado limpio: borrar localStorage en el navegador.
 
 ---
 
+## ✅ IMPLEMENTADO POR EL AMIGO (antes de auditoría mayo 2026)
+
+Las siguientes funcionalidades fueron añadidas en una sesión de trabajo:
+
+1. **Mapa interactivo en `/app/app/rutas/[id]/page.tsx`** — Leaflet via CDN (unpkg), OpenStreetMap tiles, polilínea del recorrido + marcadores numerados con color de la ruta, popup con nombre y hora, `fitBounds` automático. Skeleton de carga mientras Leaflet inicializa. Leaflet CSS también inyectado dinámicamente.
+
+2. **Búsqueda por paradas en `/app/app/rutas/page.tsx`** — `db.getAllParadas()` cargado en paralelo con rutas, filtrado cross-reference por `id_ruta`. Muestra hint "Parada: nombre" en la card cuando la coincidencia es por parada, no por nombre de ruta.
+
+3. **Validación `@usfq.edu.ec` cliente en registro y login** — `/app/registro/page.tsx` y `/app/login/page.tsx` validan que el email termine en `@usfq.edu.ec` o `@estud.usfq.edu.ec` antes de llamar al backend. Login demo (loginAs) no pasa por esta validación.
+
+4. **Validación banner 8 dígitos y teléfono** — regex en registro: `/^\d{8}$/` para banner, `/^[+\d\s-]{7,}$/` para teléfono.
+
+5. **GPS real en `/app/chofer/hoy/page.tsx`** — `navigator.geolocation.watchPosition` con `enableHighAccuracy`, `timeout: 10000`, `maximumAge: 5000`. Envía posición cada 15 segundos via `fetch('/api/gps', ...)`. Muestra lat/lng/velocidad/precisión en tiempo real. Maneja errores de permiso, dispositivo no soportado y timeout.
+
+6. **Endpoint `/api/gps/route.ts`** — Route Handler de Next.js. Demo mode acepta silenciosamente. Supabase mode inserta en `bus_locations`. Valida campos requeridos. `createClient` importado dinámicamente.
+
+7. **Cámara QR en `/app/chofer/escanear/page.tsx`** — `jsQR` cargado dinámicamente desde CDN (jsdelivr 1.4.0). `getUserMedia({ facingMode: "environment" })` con resolución 640×480. Loop `requestAnimationFrame` con `canvas` para decodificar frames. Cleanup de stream y RAF en unmount. Input manual sigue disponible como fallback.
+
+8. **Animación scan-line y estilos Leaflet en `globals.css`** — `@keyframes scan-line` para la línea que barre el viewfinder de la cámara. Estilos de popup de Leaflet adaptados a la fuente del proyecto.
+
+9. **PWA manifest** — `public/manifest.json` completo con name, short_name, icons 192/512, theme_color `#E11B22`, display standalone, shortcuts ("Reservar cupo", "Mis reservas"). `app/layout.tsx` referencia `/manifest.json` en metadata y tiene `viewport.themeColor` con values por `prefers-color-scheme`.
+
+10. **Metadatos OG en layout** — `openGraph.title`, `openGraph.description`, `appleWebApp`, `keywords`, `applicationName`.
+
+### Bugs encontrados y corregidos en la auditoría
+
+- `normalizeAsignacion()` incluía `cupos_totales` y `created_at` que no existen en el tipo `Asignacion` — eliminados (TS strict error)
+- `normalizeMensaje()` usaba `id_ruta` y `leido` inexistentes en `Mensaje` — corregidos a `destinatario_ruta` y `leido_at`
+- `normalizeReserva()` no incluía `qr_escaneado_at` ni `qr_escaneado_por` — añadidos
+- `scanQR()` Supabase branch no guardaba `qr_escaneado_at`/`qr_escaneado_por` al marcar como usada — corregido
+- `app/api/gps/route.ts` insertaba campo `timestamp` pero la tabla tiene `reportado_at` — corregido
+
+---
+
 ## ❌ LO QUE FALTA — Pendiente para la próxima IA
 
-### Alta prioridad (requisitos del profesor)
+### Alta prioridad
 
-#### 1. MAPA en detalle de ruta — `app/app/rutas/[id]/page.tsx`
-**Requisito explícito del profesor**: "Página para cada ruta contiene: horarios, paradas y mapa"
-- Las coordenadas ya existen en el seed/DB (lat/lng reales de cada parada)
-- Usar **Leaflet** via CDN (gratuito, sin API key) con tiles OpenStreetMap
-- Mostrar polilínea entre paradas + marcadores numerados con el color de la ruta
-- Implementar con `<Script>` tag y div con `id="map"` — Leaflet no soporta SSR/import normal
-- NO usar MapLibre (requiere configuración más compleja)
+#### 1. Middleware real con Supabase SSR — `middleware.ts`
+- Actualmente tiene `|| true` que bypasea toda verificación — no protege rutas en producción
+- Para Supabase SSR se necesita `createServerClient` de `@supabase/ssr` dentro del middleware con las cookies de Next.js
+- Ejemplo oficial: https://supabase.com/docs/guides/auth/server-side/nextjs
+- **Cuidado**: en demo mode (sin `NEXT_PUBLIC_SUPABASE_URL`) debe seguir pasando todo sin error
+- El `IS_SUPABASE` pattern ya funciona en `lib/db` y `demo-session.tsx` — aplicar el mismo en middleware
 
-#### 2. Búsqueda por paradas — `app/app/rutas/page.tsx`
-**Parcialmente pendiente**: La búsqueda actual filtra por `nombre`, `codigo`, `descripcion` de la ruta.
-- El profesor pide búsqueda por paradas también ("buscador por rutas/horas/paradas")
-- Solución: en `useEffect`, cargar también `db.getParadas()` y hacer join manual para filtrar rutas que tengan una parada cuyo nombre coincida con `q`
+#### 2. Tracking en tiempo real para estudiantes
+- El GPS del chofer ya envía posiciones a `bus_locations` en Supabase
+- Falta: suscripción Supabase Realtime en la página del estudiante para ver el bus en el mapa
+- Candidato: añadir un tab o sección en `/app/app/rutas/[id]/page.tsx`
+- Requiere Supabase Realtime channel: `supabase.channel('bus-location').on('postgres_changes', ...)`
 
-#### 3. Validación `@usfq.edu.ec` — `app/registro/page.tsx`
-**Parcialmente hecho**:
-- El trigger en Supabase ya tiene la validación comentada
-- En el cliente (`app/registro/page.tsx`) hay que agregar validación de formato antes de llamar a `register()`
-- Dominio válido: `@usfq.edu.ec` o `@estud.usfq.edu.ec`
-- Solo para producción — en demo mode se acepta cualquier email
+#### 3. Validación `@usfq.edu.ec` en Supabase trigger
+- La validación cliente ya existe en login y registro (✅)
+- En el trigger `handle_new_user` la validación está **comentada** — descomentar para producción
+- Hacerlo via Supabase SQL Editor, no desde código
 
-#### 4. Middleware real con Supabase SSR — `middleware.ts`
-- Actualmente tiene `|| true` que bypasea todo — no protege rutas en producción
-- Para Supabase SSR se necesita `createServerClient` dentro del middleware con cookies de Next.js
-- Referencia: `@supabase/ssr` tiene un ejemplo de middleware específico para Next.js
-- Cuidado: en demo mode (sin env vars) debe seguir pasando todo sin error
+### Media prioridad
 
-#### 5. GPS real — `app/chofer/hoy/page.tsx`
-- Reemplazar mock con `navigator.geolocation.watchPosition`
-- Crear endpoint `POST /api/gps` → insert en `bus_locations` en Supabase
-- Supabase Realtime para que la posición llegue a estudiantes en tiempo real
-- Requiere HTTPS en producción para geolocation API
-
-#### 6. Cámara QR — `app/chofer/escanear/page.tsx`
-- Input manual ya funciona y llama `db.scanQR()`
-- Agregar cámara real con `jsQR` (gratuito, sin dependencias) o `@zxing/browser`
-- Requiere HTTPS + permisos de cámara
-- El backend ya está completo: `db.scanQR(token, idChofer)` devuelve la reserva actualizada
-
-### Media prioridad (mejoras UX / rubrica)
-
-#### 7. PWA manifest — `app/layout.tsx` y `public/`
-- Crear `public/manifest.json` con nombre, iconos, theme_color (#E11B22), display standalone
-- Agregar `<link rel="manifest">` en layout
-- Iconos: al menos 192x192 y 512x512 PNG
-- Sin service worker por ahora (solo manifest para "instalar en móvil")
-
-#### 8. Tracking tiempo real para estudiantes
-- Nueva sección en `/app/rutas/[id]` o página `/app/tracking/[id]`
-- Consume `bus_locations` via Supabase Realtime subscription
-- Requiere GPS real en el chofer primero (item #5)
-
-#### 9. Notificaciones email
-- Confirmación de reserva al crear
-- Notificación de cancelación
-- Resend o SendGrid via Supabase Edge Functions
-- **Bajo prioridad** — no en rubrica explícita del profesor
-
-### Deuda técnica
-
-#### 10. Eliminar archivos legacy
+#### 4. Eliminar archivos legacy
 Confirmar con el usuario primero:
 - `functions/` (Firebase/Genkit — remanente de versión anterior)
 - `firebase.json`, `apphosting.yaml`, `database.rules.json`
 - Si Firebase Hosting ya no es el target de deploy, eliminar todo esto
 
-#### 11. Insights con Gemini API — `app/admin/insights/page.tsx`
-- Actualmente análisis puramente algorítmico (funciona bien)
-- Cuando esté disponible `GEMINI_API_KEY`, añadir llamada a `POST /api/ai/insights`
-- **No urgente** — el análisis actual es suficiente para la presentación
+#### 5. Insights con Gemini API — `app/admin/insights/page.tsx`
+- Actualmente análisis puramente algorítmico (funciona bien para la demo)
+- Cuando esté disponible `GEMINI_API_KEY`, añadir `POST /api/ai/insights`
+- **No urgente** — el análisis actual cubre la rubrica
+
+#### 6. Notificaciones email
+- Confirmación de reserva y cancelación
+- Resend via Supabase Edge Functions
+- **Bajo prioridad** — no en rubrica del profesor
 
 ---
 
@@ -269,22 +269,25 @@ Confirmar con el usuario primero:
 | Landing page pública | ✅ | `app/page.tsx` |
 | Registro/Login — rutas privadas detrás de auth | ✅ | AppShell redirige, middleware scaffold |
 | Home privado (dashboard por rol) | ✅ | 3 dashboards distintos |
-| Página por ruta con horarios y paradas | ✅ parcial | Horarios y paradas ✅ — **FALTA MAPA** ❌ |
-| Página por ruta con mapa | ❌ | Pendiente #1 arriba |
+| Página por ruta con horarios y paradas | ✅ | `/app/rutas/[id]` — timeline completo |
+| Página por ruta con mapa | ✅ | Leaflet + OSM, polilínea + marcadores numerados |
 | Buscador por rutas/código/descripción | ✅ | En `/app/rutas` |
-| Buscador por paradas | ❌ | Pendiente #2 arriba |
-| Buscador por horarios | ⚠️ | Existe en `/app/horarios` pero no en el buscador principal |
-| Esquema SQL de base de datos | ✅ | En Supabase migrations — 9 tablas |
+| Buscador por paradas | ✅ | Cross-ref `getAllParadas()` con hint visual |
+| Buscador por horarios | ⚠️ | Existe en `/app/horarios` separado, no integrado al buscador principal |
+| Esquema SQL de base de datos | ✅ | En Supabase — 9 tablas con RLS |
 | Trigger `handle_new_user` | ✅ | Implementado en Supabase |
-| Validación dominio `@usfq.edu.ec` | ⚠️ | En trigger (comentado para demo) — falta validación cliente |
-| Validaciones en formulario de registro | ✅ | Nombre, email, banner, password ≥ 6 |
-| Código banner (campo en registro) | ✅ | `codigo_banner` en form y DB |
-| RLS en Supabase | ✅ | Policies completas por rol |
+| Validación dominio `@usfq.edu.ec` cliente | ✅ | En registro y login — regex `@usfq.edu.ec\|@estud.usfq.edu.ec` |
+| Validación dominio `@usfq.edu.ec` Supabase | ⚠️ | En trigger pero comentado — descomentar para producción |
+| Validaciones en formulario de registro | ✅ | Nombre, email, banner 8 dígitos, teléfono, password ≥ 6 |
+| Código banner (campo en registro) | ✅ | `codigo_banner` en form, validado y guardado en DB |
+| RLS en Supabase | ✅ | Policies completas por rol con `get_user_rol()` |
 | Ruta personal del usuario (campo `id_ruta`) | ✅ | En registro y perfil |
 | Rutas/paradas privadas (detrás de auth) | ✅ | AppShell redirige a /login |
-| Responsive mobile | ✅ | Todas las páginas responsive |
-| Soporte smartphone | ✅ | Mobile-first, responsive |
-| PWA / instalar en móvil | ❌ | Pendiente #7 arriba |
+| Responsive mobile | ✅ | Todas las páginas mobile-first |
+| Soporte smartphone | ✅ | Responsive + PWA manifest |
+| PWA / instalar en móvil | ✅ | `manifest.json` con icons 192/512, shortcuts |
+| GPS en tiempo real (chofer) | ✅ | `watchPosition` → `POST /api/gps` → Supabase |
+| Escaneo QR con cámara | ✅ | jsQR via CDN + fallback manual |
 
 ---
 

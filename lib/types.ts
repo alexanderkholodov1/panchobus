@@ -1,7 +1,8 @@
 export type Role = "estudiante" | "admin" | "chofer";
 export type UserStatus = "pendiente" | "activo" | "suspendido";
 export type RouteStatus = "activa" | "inactiva" | "suspendida";
-export type BusStatus = "disponible" | "mantenimiento" | "fuera_servicio";
+// Supabase check: activo | mantenimiento | inactivo
+export type BusStatus = "activo" | "mantenimiento" | "inactivo";
 export type AssignmentStatus = "programada" | "en_curso" | "completada" | "cancelada";
 export type ReservationStatus = "confirmada" | "en_espera" | "cancelada" | "usada" | "no_show";
 
@@ -50,31 +51,31 @@ export interface Ruta {
 }
 
 export interface Bus {
-  id_bus: string;
+  id_bus: number;           // bigint en Supabase
   placa: string;
   modelo: string;
   capacidad: number;
   estado: BusStatus;
-  id_chofer_asignado: string | null;
 }
 
 export interface Asignacion {
-  id_asignacion: string;
+  id_asignacion: number;    // bigint en Supabase
   id_ruta: number;
-  id_bus: string;
-  id_chofer: string;
+  id_bus: number | null;    // bigint en Supabase
+  id_chofer: string | null; // uuid
   fecha: string;
   hora_salida: string;
   hora_regreso: string;
-  estado: AssignmentStatus;
+  cupos_totales: number;
   cupos_disponibles: number;
   cupos_reservados: number;
+  estado: AssignmentStatus;
 }
 
 export interface Reserva {
-  id_reserva: string;
-  id_usuario: string;
-  id_asignacion: string;
+  id_reserva: number;       // bigint en Supabase
+  id_usuario: string;       // uuid
+  id_asignacion: number;    // bigint en Supabase
   estado: ReservationStatus;
   qr_token: string;
   qr_escaneado_at?: string | null;
@@ -84,35 +85,34 @@ export interface Reserva {
   created_at: string;
 }
 
+// Refleja exactamente la tabla bus_locations de Supabase
 export interface BusLocation {
-  id_bus: string;
-  id_asignacion: string;
-  lat: number;
-  lng: number;
-  velocidad: number;
-  reportado_at: string;
+  id: number;
+  id_bus: number | null;
+  id_asignacion: number | null;
+  latitud: number;
+  longitud: number;
+  velocidad: number | null;
+  precision: number | null;
+  timestamp: string;
 }
 
 export interface Mensaje {
-  id_mensaje: string;
-  remitente_id: string;
-  destinatario_id?: string | null;
-  destinatario_ruta?: number | null;
+  id_mensaje: number;       // bigint en Supabase
+  remitente_id: string | null;       // de_usuario uuid
+  destinatario_id?: string | null;   // para_usuario uuid
+  destinatario_ruta?: number | null; // para_ruta bigint
   asunto: string;
   cuerpo: string;
-  leido_at?: string | null;
+  leido: boolean;           // boolean en Supabase
   created_at: string;
 }
 
 export interface Evento {
   id: number;
   id_usuario: string | null;
+  id_ruta: number | null;
   tipo: string;
   payload: Record<string, unknown>;
   created_at: string;
-}
-
-export interface DemoSession {
-  user: Usuario | null;
-  isAuthenticated: boolean;
 }

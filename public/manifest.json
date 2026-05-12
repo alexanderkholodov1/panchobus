@@ -1,0 +1,41 @@
+{
+  "name": "Pancho Bus · USFQ",
+  "short_name": "Pancho Bus",
+  "description": "Transporte universitario USFQ — reserva tu cupo y sigue tu bus en tiempo real.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F0E0E",
+  "theme_color": "#E11B22",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "travel"],
+  "shortcuts": [
+    {
+      "name": "Reservar cupo",
+      "short_name": "Reservar",
+      "url": "/app/reservar",
+      "description": "Reserva un cupo en tu ruta"
+    },
+    {
+      "name": "Mis reservas",
+      "short_name": "Mis reservas",
+      "url": "/app/mis-reservas",
+      "description": "Ver tus reservas activas"
+    }
+  ]
+}

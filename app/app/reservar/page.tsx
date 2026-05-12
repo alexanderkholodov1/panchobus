@@ -46,7 +46,7 @@ function ReservarContent() {
       const preAsg = search.get("asignacion");
       if (preRuta) { setSelectedRuta(Number(preRuta)); setStep("fecha"); }
       if (preAsg) {
-        const found = a.find((x) => x.id_asignacion === preAsg);
+        const found = a.find((x) => x.id_asignacion === Number(preAsg));
         if (found) { setSelectedRuta(found.id_ruta); setSelectedAsignacion(found); setStep("confirmar"); }
       }
     });

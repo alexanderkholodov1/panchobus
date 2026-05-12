@@ -25,6 +25,15 @@ export const metadata: Metadata = {
   applicationName: "Pancho Bus",
   authors: [{ name: "USFQ" }],
   keywords: ["USFQ", "Pancho Bus", "transporte", "universidad", "Cumbayá", "Quito"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Pancho Bus",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
   openGraph: {
     title: "Pancho Bus · USFQ",
     description: "Transporte universitario USFQ — moderno, accesible, en tiempo real.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,15 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { useSession } from "@/components/providers/demo-session";
 import type { Asignacion, Parada, Ruta } from "@/lib/types";
-import { Navigation, Clock, MapPin, Bus, Play, CheckCircle2, Calendar } from "lucide-react";
+import { Navigation, Clock, MapPin, Bus, Play, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/toaster";
+
+interface GeoCoords {
+  lat: number;
+  lng: number;
+  velocidad: number | null;
+  precision: number | null;
+}
 
 export default function ChoferHoyPage() {
   const { user } = useSession();
@@ -17,6 +24,11 @@ export default function ChoferHoyPage() {
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [tracking, setTracking] = useState(false);
+  const [coords, setCoords] = useState<GeoCoords | null>(null);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const coordsRef = useRef<GeoCoords | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -32,16 +44,88 @@ export default function ChoferHoyPage() {
     });
   }, [user]);
 
+  // Keep coordsRef in sync for the interval callback
+  useEffect(() => { coordsRef.current = coords; }, [coords]);
+
+  const enviarUbicacion = async (c: GeoCoords) => {
+    if (!asignacion) return;
+    try {
+      await fetch("/api/gps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_asignacion: asignacion.id_asignacion,
+          latitud: c.lat,
+          longitud: c.lng,
+          velocidad: c.velocidad,
+          precision: c.precision,
+        }),
+      });
+    } catch {
+      // Silently fail — GPS keeps running
+    }
+  };
+
   const iniciarRuta = () => {
+    setGpsError(null);
+
+    if (!navigator.geolocation) {
+      setGpsError("Este dispositivo no soporta geolocalización.");
+      return;
+    }
+
+    // Watch position continuously
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const c: GeoCoords = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          velocidad: pos.coords.speed,
+          precision: pos.coords.accuracy,
+        };
+        setCoords(c);
+        coordsRef.current = c;
+      },
+      (err) => {
+        const msgs: Record<number, string> = {
+          1: "Permiso de ubicación denegado.",
+          2: "No se pudo determinar la ubicación.",
+          3: "Tiempo de espera agotado.",
+        };
+        setGpsError(msgs[err.code] ?? "Error de geolocalización.");
+        setTracking(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+
+    // Send location to API every 15 seconds
+    intervalRef.current = setInterval(() => {
+      if (coordsRef.current) enviarUbicacion(coordsRef.current);
+    }, 15000);
+
     setTracking(true);
-    toast({ title: "GPS activo", description: "Enviando ubicación cada 15s", variant: "success" });
-    // En producción: navigator.geolocation.watchPosition → POST /api/gps
+    toast({ title: "GPS activo", description: "Enviando ubicación cada 15 s", variant: "success" });
   };
 
   const finalizarRuta = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setTracking(false);
+    setCoords(null);
     toast({ title: "Ruta finalizada", variant: "info" });
   };
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
 
   if (!asignacion) {
     return (
@@ -68,7 +152,7 @@ export default function ChoferHoyPage() {
           {ruta && <div className="h-2" style={{ background: ruta.color_hex }} />}
           <CardBody className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant={asignacion.estado==="en_curso"?"success":asignacion.estado==="completada"?"default":"info"}>
+              <Badge variant={asignacion.estado === "en_curso" ? "success" : asignacion.estado === "completada" ? "default" : "info"}>
                 {asignacion.estado}
               </Badge>
               {ruta && <Badge variant="info">{ruta.codigo}</Badge>}
@@ -106,23 +190,60 @@ export default function ChoferHoyPage() {
               </div>
             </div>
 
-            {/* GPS button */}
+            {/* GPS control */}
             {asignacion.estado !== "completada" && (
-              tracking ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 bg-state-ok/10 text-state-ok px-3 py-2 rounded-lg text-sm">
-                    <div className="w-2 h-2 rounded-full bg-state-ok animate-pulse" />
-                    GPS activo — enviando ubicación en tiempo real
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={finalizarRuta}>
-                    <CheckCircle2 className="w-4 h-4" /> Finalizar ruta
-                  </Button>
-                </div>
-              ) : (
-                <Button className="w-full" size="lg" onClick={iniciarRuta}>
-                  <Play className="w-4 h-4" /> Iniciar ruta · Activar GPS
-                </Button>
-              )
+              <div className="space-y-2">
+                {tracking ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-state-ok/10 text-state-ok px-3 py-2 rounded-lg text-sm">
+                      <div className="w-2 h-2 rounded-full bg-state-ok animate-pulse shrink-0" />
+                      <span>GPS activo — transmitiendo en tiempo real</span>
+                    </div>
+                    {coords && (
+                      <div className="grid grid-cols-2 gap-2 text-xs bg-surface-2 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="text-muted">Latitud</p>
+                          <p className="font-mono font-medium">{coords.lat.toFixed(6)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted">Longitud</p>
+                          <p className="font-mono font-medium">{coords.lng.toFixed(6)}</p>
+                        </div>
+                        {coords.velocidad != null && (
+                          <div>
+                            <p className="text-muted">Velocidad</p>
+                            <p className="font-mono font-medium">{(coords.velocidad * 3.6).toFixed(1)} km/h</p>
+                          </div>
+                        )}
+                        {coords.precision != null && (
+                          <div>
+                            <p className="text-muted">Precisión</p>
+                            <p className="font-mono font-medium">±{coords.precision.toFixed(0)} m</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <Button variant="outline" className="w-full" onClick={finalizarRuta}>
+                      <CheckCircle2 className="w-4 h-4" /> Finalizar ruta
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button className="w-full" size="lg" onClick={iniciarRuta}>
+                      <Navigation className="w-4 h-4" /> Iniciar ruta · Activar GPS
+                    </Button>
+                    {gpsError && (
+                      <div className="flex items-start gap-2 text-sm text-state-error bg-state-error/10 px-3 py-2 rounded-lg">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>{gpsError}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted text-center">
+                      Se requieren permisos de ubicación en el navegador.
+                    </p>
+                  </>
+                )}
+              </div>
             )}
           </CardBody>
         </Card>
@@ -134,10 +255,13 @@ export default function ChoferHoyPage() {
             {paradas.map((p, i) => (
               <div key={p.id_parada} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ borderColor: ruta?.color_hex ?? "#E11B22",
+                  <div
+                    className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{
+                      borderColor: ruta?.color_hex ?? "#E11B22",
                       background: p.tipo !== "intermedia" ? ruta?.color_hex : "transparent",
-                      color: p.tipo !== "intermedia" ? "white" : ruta?.color_hex }}>
+                      color: p.tipo !== "intermedia" ? "white" : ruta?.color_hex,
+                    }}>
                     {i + 1}
                   </div>
                   {i < paradas.length - 1 && (

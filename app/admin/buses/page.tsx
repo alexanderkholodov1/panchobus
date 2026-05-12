@@ -9,10 +9,10 @@ import type { Bus } from "@/lib/types";
 import { Bus as BusIcon, Wrench, XCircle, CheckCircle2 } from "lucide-react";
 
 const ESTADO_COLORS: Record<string, "success" | "warning" | "error"> = {
-  disponible: "success", mantenimiento: "warning", fuera_servicio: "error"
+  activo: "success", mantenimiento: "warning", inactivo: "error"
 };
 const ESTADO_ICONS: Record<string, typeof CheckCircle2> = {
-  disponible: CheckCircle2, mantenimiento: Wrench, fuera_servicio: XCircle
+  activo: CheckCircle2, mantenimiento: Wrench, inactivo: XCircle
 };
 
 export default function AdminBusesPage() {
@@ -29,13 +29,13 @@ export default function AdminBusesPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          {(["disponible","mantenimiento","fuera_servicio"] as const).map((estado) => {
+          {(["activo","mantenimiento","inactivo"] as const).map((estado) => {
             const count = buses.filter((b) => b.estado === estado).length;
             return (
               <Card key={estado}>
                 <CardBody className="text-center py-4">
-                  <p className={`font-display text-3xl text-state-${estado === "disponible" ? "ok" : estado === "mantenimiento" ? "warn" : "error"}`}>{count}</p>
-                  <p className="text-xs text-muted mt-1 capitalize">{estado.replace("_"," ")}</p>
+                  <p className={`font-display text-3xl text-state-${estado === "activo" ? "ok" : estado === "mantenimiento" ? "warn" : "error"}`}>{count}</p>
+                  <p className="text-xs text-muted mt-1 capitalize">{estado}</p>
                 </CardBody>
               </Card>
             );
@@ -63,11 +63,9 @@ export default function AdminBusesPage() {
                       <p className="text-sm text-muted">{b.modelo} · {b.capacidad} asientos</p>
                     </div>
                     <div className="text-right text-xs text-muted">
-                      {b.id_chofer_asignado ? (
-                        <span className="text-state-ok">Con personal asignado</span>
-                      ) : (
-                        <span>Sin personal asignado</span>
-                      )}
+                      <span className={b.estado === "activo" ? "text-state-ok" : "text-muted"}>
+                        {b.capacidad} asientos
+                      </span>
                     </div>
                   </div>
                 </CardBody>

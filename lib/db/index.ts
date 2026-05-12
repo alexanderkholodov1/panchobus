@@ -14,7 +14,7 @@ import {
   SEED_PARADAS,
   SEED_RESERVAS,
   SEED_RUTAS,
-  SEED_USUARIOS
+  SEED_USUARIOS,
 } from "@/lib/data/seed";
 import type {
   Asignacion,
@@ -23,7 +23,7 @@ import type {
   Parada,
   Reserva,
   Ruta,
-  Usuario
+  Usuario,
 } from "@/lib/types";
 
 const IS_SUPABASE =
@@ -36,7 +36,6 @@ const IS_SUPABASE =
 // ============================================================
 function getSupabase() {
   if (!IS_SUPABASE) return null;
-  // Dynamic import para evitar errores en demo mode
   const { createBrowserClient } = require("@supabase/ssr");
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,7 +67,7 @@ function getStore(): Store {
     buses: structuredClone(SEED_BUSES),
     asignaciones: structuredClone(SEED_ASIGNACIONES),
     reservas: structuredClone(SEED_RESERVAS),
-    mensajes: structuredClone(SEED_MENSAJES)
+    mensajes: structuredClone(SEED_MENSAJES),
   };
   if (typeof window !== "undefined") {
     try {
@@ -155,8 +154,7 @@ export const db = {
   async deleteRuta(id: number): Promise<void> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      const { error } = await supabase.from("rutas").delete().eq("id_ruta", id);
-      if (error) throw error;
+      await supabase.from("rutas").delete().eq("id_ruta", id);
       return;
     }
     const s = getStore();
@@ -214,7 +212,7 @@ export const db = {
   async getUsuariosByRol(rol: Usuario["rol"]): Promise<Usuario[]> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      const { data, error } = await supabase.from("usuarios").select("*").eq("rol", rol);
+      const { data, error } = await supabase.from("usuarios").select("*").eq("rol", rol).order("nombre");
       if (error) throw error;
       return data ?? [];
     }
@@ -223,8 +221,8 @@ export const db = {
 
   async addUsuario(usuario: Usuario): Promise<Usuario> {
     if (IS_SUPABASE) {
-      // En Supabase el insert lo hace el trigger handle_new_user.
-      // Este método solo se usa para crear choferes/admins desde el panel admin.
+      // En Supabase el insert lo hace el trigger handle_new_user en auth.
+      // Este método se usa para crear choferes/admins manualmente desde el panel admin.
       const supabase = getSupabase();
       const { data, error } = await supabase
         .from("usuarios").upsert(usuario, { onConflict: "id_usuario" }).select().single();
@@ -282,7 +280,7 @@ export const db = {
     return getStore().asignaciones;
   },
 
-  async getAsignacion(id: string): Promise<Asignacion | null> {
+  async getAsignacion(id: number): Promise<Asignacion | null> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
       const { data, error } = await supabase
@@ -352,7 +350,7 @@ export const db = {
     return getStore().reservas.filter((r) => r.id_usuario === idUsuario);
   },
 
-  async getReservasByAsignacion(idAsignacion: string): Promise<Reserva[]> {
+  async getReservasByAsignacion(idAsignacion: number): Promise<Reserva[]> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
       const { data, error } = await supabase
@@ -365,16 +363,14 @@ export const db = {
 
   async createReserva(
     idUsuario: string,
-    idAsignacion: string,
+    idAsignacion: number,
     observaciones?: string
   ): Promise<Reserva> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      // Verificar cupos disponibles
       const { data: asg } = await supabase
         .from("asignaciones").select("cupos_disponibles, cupos_reservados").eq("id_asignacion", idAsignacion).single();
       const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
-      // Posición en lista de espera
       let posicion_waitlist: number | null = null;
       if (enEspera) {
         const { count } = await supabase
@@ -382,15 +378,13 @@ export const db = {
           .eq("id_asignacion", idAsignacion).eq("estado", "en_espera");
         posicion_waitlist = (count ?? 0) + 1;
       }
-      const payload = {
+      const { data, error } = await supabase.from("reservas").insert({
         id_usuario: idUsuario,
         id_asignacion: idAsignacion,
         estado: enEspera ? "en_espera" : "confirmada",
-        posicion_waitlist
-      };
-      const { data, error } = await supabase.from("reservas").insert(payload).select().single();
+        posicion_waitlist,
+      }).select().single();
       if (error) throw error;
-      // Actualizar cupos si confirmada
       if (!enEspera) {
         await supabase.from("asignaciones")
           .update({ cupos_reservados: (asg?.cupos_reservados ?? 0) + 1 })
@@ -403,7 +397,7 @@ export const db = {
     const asg = s.asignaciones.find((a) => a.id_asignacion === idAsignacion);
     const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
     const reserva: Reserva = {
-      id_reserva: `rsv-${Date.now()}`,
+      id_reserva: Date.now(),
       id_usuario: idUsuario,
       id_asignacion: idAsignacion,
       estado: enEspera ? "en_espera" : "confirmada",
@@ -412,7 +406,7 @@ export const db = {
         ? s.reservas.filter((r) => r.id_asignacion === idAsignacion && r.estado === "en_espera").length + 1
         : null,
       observaciones,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
     s.reservas.push(reserva);
     if (asg && !enEspera) asg.cupos_reservados += 1;
@@ -420,14 +414,13 @@ export const db = {
     return reserva;
   },
 
-  async cancelReserva(idReserva: string): Promise<void> {
+  async cancelReserva(idReserva: number): Promise<void> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
       const { data: reserva } = await supabase
         .from("reservas").select("id_asignacion, estado").eq("id_reserva", idReserva).single();
       await supabase.from("reservas").update({ estado: "cancelada" }).eq("id_reserva", idReserva);
       if (reserva?.estado === "confirmada") {
-        // Liberar cupo y promover primer en_espera
         const { data: asg } = await supabase
           .from("asignaciones").select("cupos_reservados").eq("id_asignacion", reserva.id_asignacion).single();
         if (asg) {
@@ -435,7 +428,6 @@ export const db = {
             .update({ cupos_reservados: Math.max(0, asg.cupos_reservados - 1) })
             .eq("id_asignacion", reserva.id_asignacion);
         }
-        // Promover primer pasajero en espera
         const { data: espera } = await supabase
           .from("reservas").select("id_reserva")
           .eq("id_asignacion", reserva.id_asignacion).eq("estado", "en_espera")
@@ -466,7 +458,11 @@ export const db = {
       if (reserva.estado === "usada") return normalizeReserva(reserva);
       const { data, error } = await supabase
         .from("reservas")
-        .update({ estado: "usada" })
+        .update({
+          estado: "usada",
+          qr_escaneado_at: new Date().toISOString(),
+          qr_escaneado_por: idChofer,
+        })
         .eq("qr_token", qrToken)
         .select().single();
       if (error) return null;
@@ -500,10 +496,17 @@ export const db = {
   async getMensajesDeUsuario(idUsuario: string): Promise<Mensaje[]> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from("mensajes").select("*")
-        .or(`para_usuario.eq.${idUsuario}`)
-        .order("created_at", { ascending: false });
+      // Mensajes dirigidos a este usuario directamente O a su ruta
+      const { data: usuario } = await supabase
+        .from("usuarios").select("id_ruta").eq("id_usuario", idUsuario).single();
+      const idRuta = usuario?.id_ruta ?? null;
+      let query = supabase.from("mensajes").select("*");
+      if (idRuta) {
+        query = query.or(`para_usuario.eq.${idUsuario},para_ruta.eq.${idRuta}`);
+      } else {
+        query = query.eq("para_usuario", idUsuario);
+      }
+      const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(normalizeMensaje);
     }
@@ -515,77 +518,87 @@ export const db = {
   async createMensaje(m: Omit<Mensaje, "id_mensaje" | "created_at">): Promise<Mensaje> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      // Mapear campos del tipo interno a columnas de Supabase
-      const payload: Record<string, unknown> = {
+      const { data, error } = await supabase.from("mensajes").insert({
         asunto: m.asunto,
         cuerpo: m.cuerpo,
         de_usuario: m.remitente_id ?? null,
         para_usuario: m.destinatario_id ?? null,
-        para_ruta: m.id_ruta ?? null,
-        leido: false
-      };
-      const { data, error } = await supabase.from("mensajes").insert(payload).select().single();
+        para_ruta: m.destinatario_ruta ?? null,
+        leido: false,
+      }).select().single();
       if (error) throw error;
       return normalizeMensaje(data);
     }
     const s = getStore();
     const nuevo: Mensaje = {
       ...m,
-      id_mensaje: `msg-${Date.now()}`,
-      created_at: new Date().toISOString()
+      id_mensaje: Date.now(),
+      created_at: new Date().toISOString(),
     };
     s.mensajes.push(nuevo);
     persist(s);
     return nuevo;
-  }
+  },
+
+  async marcarMensajeLeido(idMensaje: number): Promise<void> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      await supabase.from("mensajes").update({ leido: true }).eq("id_mensaje", idMensaje);
+      return;
+    }
+    const s = getStore();
+    const m = s.mensajes.find((x) => x.id_mensaje === idMensaje);
+    if (m) { m.leido = true; persist(s); }
+  },
 };
 
 // ============================================================
-// NORMALIZERS — mapean snake_case de Supabase al tipo interno
+// NORMALIZERS — mapean columnas de Supabase al tipo interno
 // ============================================================
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeAsignacion(d: any): Asignacion {
   return {
-    id_asignacion: String(d.id_asignacion),
-    id_ruta: d.id_ruta,
-    id_bus: d.id_bus ? String(d.id_bus) : null,
-    id_chofer: d.id_chofer ?? null,
-    fecha: d.fecha,
-    hora_salida: d.hora_salida,
-    hora_regreso: d.hora_regreso ?? "",
-    cupos_totales: d.cupos_totales ?? d.cupos_disponibles,
-    cupos_disponibles: d.cupos_disponibles,
-    cupos_reservados: d.cupos_reservados,
-    estado: d.estado,
-    created_at: d.created_at
+    id_asignacion: Number(d.id_asignacion),
+    id_ruta:       Number(d.id_ruta),
+    id_bus:        d.id_bus != null ? Number(d.id_bus) : null,
+    id_chofer:     d.id_chofer ?? null,
+    fecha:         d.fecha,
+    hora_salida:   d.hora_salida,
+    hora_regreso:  d.hora_regreso ?? "",
+    cupos_totales:      d.cupos_totales ?? d.cupos_disponibles,
+    cupos_disponibles:  d.cupos_disponibles,
+    cupos_reservados:   d.cupos_reservados,
+    estado:        d.estado,
   };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeReserva(d: any): Reserva {
   return {
-    id_reserva: String(d.id_reserva),
-    id_usuario: d.id_usuario,
-    id_asignacion: String(d.id_asignacion),
-    estado: d.estado,
-    qr_token: d.qr_token,
+    id_reserva:        Number(d.id_reserva),
+    id_usuario:        d.id_usuario,
+    id_asignacion:     Number(d.id_asignacion),
+    estado:            d.estado,
+    qr_token:          d.qr_token,
+    qr_escaneado_at:   d.qr_escaneado_at ?? null,
+    qr_escaneado_por:  d.qr_escaneado_por ?? null,
     posicion_waitlist: d.posicion_waitlist ?? null,
-    observaciones: d.observaciones ?? undefined,
-    created_at: d.created_at
+    observaciones:     d.observaciones ?? undefined,
+    created_at:        d.created_at,
   };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeMensaje(d: any): Mensaje {
   return {
-    id_mensaje: String(d.id_mensaje),
-    remitente_id: d.de_usuario ?? null,
-    destinatario_id: d.para_usuario ?? null,
-    id_ruta: d.para_ruta ?? null,
-    asunto: d.asunto ?? "",
-    cuerpo: d.cuerpo,
-    leido: d.leido ?? false,
-    created_at: d.created_at
+    id_mensaje:        Number(d.id_mensaje),
+    remitente_id:      d.de_usuario ?? null,
+    destinatario_id:   d.para_usuario ?? null,
+    destinatario_ruta: d.para_ruta != null ? Number(d.para_ruta) : null,
+    asunto:            d.asunto ?? "",
+    cuerpo:            d.cuerpo,
+    leido:             d.leido ?? false,
+    created_at:        d.created_at,
   };
 }

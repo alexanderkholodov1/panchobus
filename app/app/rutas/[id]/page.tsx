@@ -33,6 +33,7 @@ export default function RutaDetailPage() {
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     const rid = Number(id);
@@ -44,6 +45,85 @@ export default function RutaDetailPage() {
     });
   }, [id, router]);
 
+  // Load Leaflet from CDN and render the map once we have route + stops
+  useEffect(() => {
+    if (!ruta || paradas.length === 0) return;
+
+    const validParadas = paradas.filter((p) => p.latitud && p.longitud);
+    if (validParadas.length === 0) return;
+
+    // Inject Leaflet CSS if not already present
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    const initMap = (color: string, stops: Parada[]) => {
+      const L = (window as any).L;
+      const mapEl = document.getElementById("route-map");
+      if (!mapEl) return;
+
+      // Remove any prior instance
+      if ((mapEl as any)._leaflet_id) {
+        const prior = (window as any)._panchoMap;
+        if (prior) { prior.remove(); (window as any)._panchoMap = null; }
+      }
+
+      const center: [number, number] = [stops[0].latitud!, stops[0].longitud!];
+      const map = L.map("route-map", { zoomControl: true, scrollWheelZoom: false }).setView(center, 13);
+      (window as any)._panchoMap = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Polyline between all stops
+      const latlngs: [number, number][] = stops.map((p) => [p.latitud!, p.longitud!]);
+      L.polyline(latlngs, { color, weight: 5, opacity: 0.8 }).addTo(map);
+
+      // Numbered markers
+      stops.forEach((parada, i) => {
+        const isEndpoint = parada.tipo !== "intermedia";
+        const html = `<div style="
+          width:28px;height:28px;border-radius:50%;
+          background:${isEndpoint ? color : "#ffffff"};
+          border:3px solid ${color};
+          display:flex;align-items:center;justify-content:center;
+          font-size:11px;font-weight:700;
+          color:${isEndpoint ? "#ffffff" : color};
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i + 1}</div>`;
+        const icon = L.divIcon({ html, className: "", iconSize: [28, 28], iconAnchor: [14, 14] });
+        L.marker([parada.latitud!, parada.longitud!], { icon })
+          .addTo(map)
+          .bindPopup(`<b>${parada.nombre}</b><br/><small>${parada.tipo} &nbsp;·&nbsp; ↑ ${parada.hora_salida}</small>`);
+      });
+
+      // Fit to all stops
+      map.fitBounds(L.latLngBounds(latlngs), { padding: [32, 32] });
+      setMapReady(true);
+    };
+
+    if ((window as any).L) {
+      initMap(ruta.color_hex, validParadas);
+    } else {
+      const script = document.createElement("script");
+      script.id = "leaflet-js";
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload = () => initMap(ruta.color_hex, validParadas);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      const prior = (window as any)._panchoMap;
+      if (prior) { prior.remove(); (window as any)._panchoMap = null; }
+      setMapReady(false);
+    };
+  }, [ruta, paradas]);
+
   if (!ruta) {
     return (
       <AppShell role="estudiante">
@@ -54,6 +134,8 @@ export default function RutaDetailPage() {
     );
   }
 
+  const hasMapData = paradas.some((p) => p.latitud && p.longitud);
+
   return (
     <AppShell role="estudiante">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -61,6 +143,7 @@ export default function RutaDetailPage() {
           <ArrowLeft className="w-4 h-4" />Volver a rutas
         </Link>
 
+        {/* Header banner */}
         <div className="overflow-hidden rounded-2xl" style={{ background: `linear-gradient(135deg, ${ruta.color_hex}, ${ruta.color_hex}CC)` }}>
           <div className="p-6 text-white">
             <Badge className="bg-white/20 border-white/30 text-white mb-3">{ruta.codigo}</Badge>
@@ -74,9 +157,12 @@ export default function RutaDetailPage() {
           </div>
         </div>
 
+        {/* Status + reserve */}
         <div className="flex flex-wrap gap-3 items-center">
           <Badge variant={ruta.estado === "activa" ? "success" : ruta.estado === "suspendida" ? "warning" : "default"}>
-            {ruta.estado === "activa" ? <><CheckCircle2 className="w-3.5 h-3.5" /> Activa</> : <><AlertCircle className="w-3.5 h-3.5" /> {ruta.estado}</>}
+            {ruta.estado === "activa"
+              ? <><CheckCircle2 className="w-3.5 h-3.5" /> Activa</>
+              : <><AlertCircle className="w-3.5 h-3.5" /> {ruta.estado}</>}
           </Badge>
           <div className="flex-1" />
           {ruta.estado === "activa" && (
@@ -86,6 +172,7 @@ export default function RutaDetailPage() {
           )}
         </div>
 
+        {/* Operator */}
         <Card>
           <CardBody className="space-y-3">
             <p className="font-display text-sm uppercase tracking-wider text-muted">Operador</p>
@@ -121,25 +208,66 @@ export default function RutaDetailPage() {
           </CardBody>
         </Card>
 
+        {/* ── MAPA INTERACTIVO ── */}
+        <div>
+          <h2 className="font-display text-xl mb-3 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" />
+            Mapa de la ruta
+          </h2>
+          <div className="rounded-2xl overflow-hidden border border-border shadow-sm relative">
+            {hasMapData ? (
+              <>
+                {!mapReady && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-2">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-7 h-7 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                      <p className="text-xs text-muted">Cargando mapa…</p>
+                    </div>
+                  </div>
+                )}
+                <div id="route-map" style={{ height: "360px", width: "100%" }} className="bg-surface-2" />
+              </>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center gap-2 bg-surface-2 text-muted">
+                <MapPin className="w-8 h-8 opacity-30" />
+                <p className="text-sm">Coordenadas no disponibles para esta ruta</p>
+              </div>
+            )}
+          </div>
+          {hasMapData && (
+            <p className="text-xs text-muted mt-1.5 text-right">Mapa: © OpenStreetMap contributors</p>
+          )}
+        </div>
+
+        {/* ── PARADAS ── */}
         <div>
           <h2 className="font-display text-xl mb-3">Paradas ({paradas.length})</h2>
           <div className="space-y-0">
             {paradas.map((p, i) => (
               <div key={p.id_parada} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 text-xs font-bold"
-                    style={{ borderColor: ruta.color_hex,
+                  <div
+                    className="w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 text-xs font-bold"
+                    style={{
+                      borderColor: ruta.color_hex,
                       background: p.tipo !== "intermedia" ? ruta.color_hex : "transparent",
-                      color: p.tipo !== "intermedia" ? "white" : ruta.color_hex }}>
+                      color: p.tipo !== "intermedia" ? "white" : ruta.color_hex,
+                    }}>
                     {i + 1}
                   </div>
-                  {i < paradas.length - 1 && <div className="w-0.5 flex-1 my-1" style={{ background: `${ruta.color_hex}40` }} />}
+                  {i < paradas.length - 1 && (
+                    <div className="w-0.5 flex-1 my-1" style={{ background: `${ruta.color_hex}40` }} />
+                  )}
                 </div>
                 <div className="pb-4 flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium leading-tight">{p.nombre}</p>
-                      {p.tipo !== "intermedia" && <Badge variant="default" className="text-xs mt-1">{p.tipo === "origen" ? "Origen" : "Destino"}</Badge>}
+                      {p.tipo !== "intermedia" && (
+                        <Badge variant="default" className="text-xs mt-1">
+                          {p.tipo === "origen" ? "Origen" : "Destino"}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-right text-xs text-muted shrink-0">
                       <p>↑ {p.hora_salida}</p>
@@ -152,6 +280,7 @@ export default function RutaDetailPage() {
           </div>
         </div>
 
+        {/* ── PRÓXIMAS SALIDAS ── */}
         {asignaciones.length > 0 && (
           <div>
             <h2 className="font-display text-xl mb-3">Próximas salidas</h2>
@@ -163,10 +292,14 @@ export default function RutaDetailPage() {
                     <CardBody className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="font-medium">
-                          {new Date(a.fecha + "T12:00:00").toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })}
+                          {new Date(a.fecha + "T12:00:00").toLocaleDateString("es-EC", {
+                            weekday: "short", day: "numeric", month: "short",
+                          })}
                           {" "}· {a.hora_salida}
                         </p>
-                        <Badge variant={a.estado === "en_curso" ? "success" : a.estado === "completada" ? "default" : "info"}>{a.estado}</Badge>
+                        <Badge variant={a.estado === "en_curso" ? "success" : a.estado === "completada" ? "default" : "info"}>
+                          {a.estado}
+                        </Badge>
                       </div>
                       <CuposBar reservados={a.cupos_reservados} total={a.cupos_disponibles} />
                       <div className="flex items-center justify-between">

@@ -42,7 +42,7 @@ export default function ChoferMensajesPage() {
           <div className="space-y-3">
             {mensajes.map((m) => {
               const remitente = getUser(m.remitente_id);
-              const isUnread = !m.leido_at;
+              const isUnread = !m.leido;
               return (
                 <Card key={m.id_mensaje} className={`transition-all ${isUnread ? "border-primary/30 shadow-sm" : ""}`}>
                   <CardBody>

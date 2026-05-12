@@ -25,7 +25,7 @@ export default function MisReservasPage() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [rutas, setRutas] = useState<Ruta[]>([]);
-  const [canceling, setCanceling] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState<number | null>(null);
   const [tab, setTab] = useState<"proximas" | "historial">("proximas");
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function MisReservasPage() {
   const proximas = reservas.map(enrich).filter((r) => (r.estado === "confirmada" || r.estado === "en_espera") && r.asg && r.asg.fecha >= today);
   const historial = reservas.map(enrich).filter((r) => r.estado === "usada" || r.estado === "cancelada" || r.estado === "no_show" || (r.asg && r.asg.fecha < today));
 
-  const cancelar = async (id: string) => {
+  const cancelar = async (id: number) => {
     setCanceling(id);
     await db.cancelReserva(id);
     setReservas((prev) => prev.map((r) => r.id_reserva === id ? { ...r, estado: "cancelada" } : r));

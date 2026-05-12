@@ -105,3 +105,26 @@ a {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* QR scanner scan-line animation */
+@keyframes scan-line {
+  0%   { top: 32px; opacity: 1; }
+  50%  { top: calc(100% - 32px); opacity: 1; }
+  100% { top: 32px; opacity: 1; }
+}
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite;
+  position: absolute;
+}
+
+/* Leaflet map popup styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+  font-family: var(--font-sans), system-ui, sans-serif !important;
+}
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  font-size: 13px;
+  line-height: 1.5;
+}

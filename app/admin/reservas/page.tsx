@@ -22,7 +22,7 @@ export default function AdminReservasPage() {
   const [q, setQ] = useState("");
   const [estadoF, setEstadoF] = useState("todas");
   const [rutaF, setRutaF] = useState("");
-  const [canceling, setCanceling] = useState<string|null>(null);
+  const [canceling, setCanceling] = useState<number|null>(null);
 
   const load = () => Promise.all([
     db.getReservas(), db.getAsignaciones(), db.getRutas(), db.getUsuarios()
@@ -44,7 +44,7 @@ export default function AdminReservasPage() {
     return matchQ && matchE && matchR;
   }).sort((a,b) => +new Date(b.created_at)-+new Date(a.created_at)), [enriched, q, estadoF, rutaF]);
 
-  const cancelar = async (id: string) => {
+  const cancelar = async (id: number) => {
     setCanceling(id);
     await db.cancelReserva(id);
     toast({ title:"Reserva cancelada", variant:"info" });
@@ -54,7 +54,7 @@ export default function AdminReservasPage() {
   const exportCSV = () => {
     const rows = [["ID","Usuario","Email","Ruta","Fecha","Salida","Estado","QR"]];
     filtered.forEach((r) => rows.push([
-      r.id_reserva, r.usuario?.nombre??"", r.usuario?.correo_electronico??"",
+      String(r.id_reserva), r.usuario?.nombre??"", r.usuario?.correo_electronico??"",
       `${r.ruta?.codigo??""} ${r.ruta?.nombre??""}`, r.asg?.fecha??"", r.asg?.hora_salida??"",
       r.estado, r.qr_token
     ]));
