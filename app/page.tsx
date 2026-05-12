@@ -136,7 +136,7 @@ export default function HomePage() {
       </section>
 
       {/* PARA QUIÉN ES */}
-      <section className="py-20 sm:py-24 2xl:py-32 bg-surface-2">
+      <section id="acceso" className="py-20 sm:py-24 2xl:py-32 bg-surface-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-xl mx-auto mb-14">
             <p className="text-sm uppercase tracking-wider text-primary font-medium mb-2">Tres experiencias</p>
@@ -210,7 +210,7 @@ export default function HomePage() {
       </section>
 
       {/* DIFERENCIADORES + IA */}
-      <section className="py-20 sm:py-24 2xl:py-32">
+      <section id="operacion" className="py-20 sm:py-24 2xl:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div>

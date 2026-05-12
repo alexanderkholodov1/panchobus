@@ -47,8 +47,11 @@ export default function AdminReservasPage() {
   const cancelar = async (id: number) => {
     setCanceling(id);
     await db.cancelReserva(id);
+    // Optimistic update + reload
+    setReservas((prev) => prev.map((r) => r.id_reserva === id ? { ...r, estado: "cancelada" as const } : r));
     toast({ title:"Reserva cancelada", variant:"info" });
-    setCanceling(null); load();
+    setCanceling(null);
+    await load();
   };
 
   const exportCSV = () => {

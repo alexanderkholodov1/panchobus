@@ -12,9 +12,11 @@ import { toast } from "@/components/ui/toaster";
 import type { Ruta } from "@/lib/types";
 import { UserCircle2, Mail, Hash, Phone, MapPin, Route, Sun, Moon, Monitor, Save, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 export default function PerfilPage() {
   const { user, logout, refresh } = useSession();
+  const { setTheme } = useTheme();
   const router = useRouter();
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [form, setForm] = useState({ nombre: "", telefono: "", direccion: "", id_ruta: "", idioma: "es", tema: "system" });
@@ -42,6 +44,7 @@ export default function PerfilPage() {
   const save = async () => {
     if (!user) return;
     setSaving(true);
+    setTheme(form.tema);
     await db.updateUsuario(user.id_usuario, {
       nombre: form.nombre,
       telefono: form.telefono,
@@ -139,7 +142,6 @@ export default function PerfilPage() {
               <Select id="idioma" value={form.idioma} onChange={set("idioma")}>
                 <option value="es">Español</option>
                 <option value="en">English</option>
-                <option value="ru">Русский</option>
               </Select>
             </div>
             <div>

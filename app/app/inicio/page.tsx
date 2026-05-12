@@ -38,6 +38,7 @@ export default function InicioPage() {
     .filter((x) => x.asignacion)
     .sort((a, b) => a.asignacion!.fecha.localeCompare(b.asignacion!.fecha))[0];
 
+  const today = new Date().toISOString().slice(0, 10);
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "¡Buenos días" : hora < 18 ? "¡Buenas tardes" : "¡Buenas noches";
   const nombre = user?.nombre.split(" ")[0] ?? "estudiante";
@@ -148,7 +149,7 @@ export default function InicioPage() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: misReservas.filter((r) => r.estado === "usada").length, label: "Viajes realizados" },
-              { value: misReservas.filter((r) => r.estado === "confirmada").length, label: "Reservas activas" },
+              { value: misReservas.filter((r) => r.estado === "confirmada" && asignaciones.find((a) => a.id_asignacion === r.id_asignacion && a.fecha >= today)).length, label: "Reservas activas" },
               { value: misReservas.filter((r) => r.estado === "cancelada").length, label: "Canceladas" }
             ].map((s) => (
               <Card key={s.label}>

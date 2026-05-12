@@ -155,6 +155,9 @@ export function AppShell({
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+          {role === "admin" && (
+            <p className="text-[10px] text-muted/40 text-center pb-1">PanchoBus v1.0.0</p>
+          )}
         </div>
       </aside>
 

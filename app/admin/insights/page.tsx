@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
+import { toast } from "@/components/ui/toaster";
 import type { Asignacion, Reserva, Ruta } from "@/lib/types";
 import {
   Sparkles, TrendingUp, TrendingDown, AlertCircle,
@@ -112,6 +113,7 @@ export default function AdminInsightsPage() {
     setInsights(result);
     setLastRun(new Date());
     setLoading(false);
+    toast({ title: "Análisis completado", description: result.length + " hallazgos generados", variant: "success" });
   };
 
   useEffect(() => { run(); }, []);

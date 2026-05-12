@@ -32,7 +32,7 @@ export default function AdminDashboardPage() {
     const a = asignaciones.find((x) => x.id_asignacion === r.id_asignacion);
     return a?.fecha === today;
   });
-  const pendientes = usuarios.filter((u) => u.estado === "pendiente");
+  const pendientes = usuarios.filter((u) => u.estado === "pendiente" && u.rol !== "estudiante");
   const ocupPromedio = asgHoy.length
     ? Math.round(asgHoy.reduce((s, a) => s + (a.cupos_reservados / a.cupos_disponibles) * 100, 0) / asgHoy.length)
     : 0;

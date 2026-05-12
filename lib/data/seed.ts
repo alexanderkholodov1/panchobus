@@ -368,6 +368,11 @@ export const SEED_ASIGNACIONES: Asignacion[] = [
   // Mañana
   { id_asignacion: 6, id_ruta: 1, id_bus: 1, id_chofer: "demo-driver",  fecha: dateStr(1), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 30 },
   { id_asignacion: 7, id_ruta: 2, id_bus: 2, id_chofer: "drv-002",      fecha: dateStr(1), hora_salida: "06:00", hora_regreso: "17:25", estado: "programada", cupos_totales: 40, cupos_disponibles: 40, cupos_reservados: 32 },
+  // Hoy tarde — rutas de regreso 15:00-17:00 (demo presentación 12 mayo)
+  { id_asignacion: 9,  id_ruta: 1, id_bus: 1, id_chofer: "demo-driver", fecha: dateStr(0), hora_salida: "15:00", hora_regreso: "16:30", estado: "en_curso",   cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 27 },
+  { id_asignacion: 10, id_ruta: 2, id_bus: 2, id_chofer: "drv-002",     fecha: dateStr(0), hora_salida: "15:30", hora_regreso: "17:00", estado: "programada", cupos_totales: 40, cupos_disponibles: 40, cupos_reservados: 35 },
+  { id_asignacion: 11, id_ruta: 3, id_bus: 3, id_chofer: "drv-003",     fecha: dateStr(0), hora_salida: "16:00", hora_regreso: "17:15", estado: "programada", cupos_totales: 36, cupos_disponibles: 36, cupos_reservados: 22 },
+  { id_asignacion: 12, id_ruta: 5, id_bus: 5, id_chofer: "drv-002",     fecha: dateStr(0), hora_salida: "16:30", hora_regreso: "17:30", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 18 },
   // Pasado mañana
   { id_asignacion: 8, id_ruta: 1, id_bus: 1, id_chofer: "demo-driver",  fecha: dateStr(2), hora_salida: "06:15", hora_regreso: "17:30", estado: "programada", cupos_totales: 32, cupos_disponibles: 32, cupos_reservados: 8  },
 ];
@@ -421,6 +426,13 @@ export const SEED_RESERVAS: Reserva[] = [
     qr_token: "DEMO-QR-4-stu-005-w8r2",
     created_at: new Date(Date.now() - 10800000).toISOString()
   }
+,
+  // Tarde hoy — asignación 9 (ruta A1 Lumbisí, Carlos Mendoza)
+  { id_reserva: 6,  id_usuario: "demo-student", id_asignacion: 9,  estado: "confirmada", qr_token: "DEMO-QR-9-demo-student-t3p8",  created_at: new Date(Date.now() - 1800000).toISOString() },
+  { id_reserva: 7,  id_usuario: "stu-002",       id_asignacion: 9,  estado: "confirmada", qr_token: "DEMO-QR-9-stu-002-k5r2",       created_at: new Date(Date.now() - 3600000).toISOString() },
+  { id_reserva: 8,  id_usuario: "stu-003",       id_asignacion: 9,  estado: "confirmada", qr_token: "DEMO-QR-9-stu-003-m7x1",       created_at: new Date(Date.now() - 5400000).toISOString() },
+  { id_reserva: 9,  id_usuario: "stu-004",       id_asignacion: 10, estado: "confirmada", qr_token: "DEMO-QR-10-stu-004-n2q9",      created_at: new Date(Date.now() - 7200000).toISOString() },
+  { id_reserva: 10, id_usuario: "stu-005",       id_asignacion: 11, estado: "confirmada", qr_token: "DEMO-QR-11-stu-005-p4w6",      created_at: new Date(Date.now() -  900000).toISOString() }
 ];
 
 // ============================================================
