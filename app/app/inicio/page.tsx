@@ -8,27 +8,30 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { useSession } from "@/components/providers/demo-session";
-import type { Asignacion, Reserva, Ruta } from "@/lib/types";
-import {
-  CalendarCheck, QrCode, Map, Clock, MapPin, ArrowRight, Bus, CheckCircle2, Hourglass
-} from "lucide-react";
+import type { Asignacion, Mensaje, Reserva, Ruta } from "@/lib/types";
+import { CalendarCheck, QrCode, Map, Clock, MapPin, ArrowRight, Bus, CheckCircle2, Hourglass, Megaphone, X } from "lucide-react";
 
 export default function InicioPage() {
   const { user } = useSession();
   const [misReservas, setMisReservas] = useState<Reserva[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [miRuta, setMiRuta] = useState<Ruta | null>(null);
+  const [avisos, setAvisos] = useState<Mensaje[]>([]);
+  const [avisosDescartados, setAvisosDescartados] = useState<number[]>([]);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
       db.getReservasByUsuario(user.id_usuario),
       db.getAsignaciones(),
-      user.id_ruta ? db.getRuta(user.id_ruta) : Promise.resolve(null)
-    ]).then(([reservas, asigs, ruta]) => {
+      user.id_ruta ? db.getRuta(user.id_ruta) : Promise.resolve(null),
+      db.getMensajesDeUsuario(user.id_usuario),
+    ]).then(([reservas, asigs, ruta, mensajes]) => {
       setMisReservas(reservas);
       setAsignaciones(asigs);
       setMiRuta(ruta);
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      setAvisos(mensajes.filter((m) => m.destinatario_ruta !== null && m.created_at >= cutoff));
     });
   }, [user]);
 
@@ -40,7 +43,7 @@ export default function InicioPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const hora = new Date().getHours();
-  const saludo = hora < 12 ? "¡Buenos días" : hora < 18 ? "¡Buenas tardes" : "¡Buenas noches";
+  const saludo = hora < 12 ? "\u00a1Buenos d\u00edas" : hora < 18 ? "\u00a1Buenas tardes" : "\u00a1Buenas noches";
   const nombre = user?.nombre.split(" ")[0] ?? "estudiante";
 
   const quickLinks = [
@@ -58,6 +61,19 @@ export default function InicioPage() {
           <h1 className="font-display text-3xl sm:text-4xl">{saludo}, {nombre}!</h1>
         </div>
 
+        {avisos.filter((a) => !avisosDescartados.includes(a.id_mensaje)).map((aviso) => (
+          <div key={aviso.id_mensaje} className="flex items-start gap-3 bg-state-warn/10 border border-state-warn/30 text-state-warn px-4 py-3 rounded-xl">
+            <Megaphone className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">{aviso.asunto}</p>
+              <p className="text-sm mt-0.5 text-foreground/80">{aviso.cuerpo}</p>
+            </div>
+            <button onClick={() => setAvisosDescartados((prev) => [...prev, aviso.id_mensaje])} className="text-state-warn/60 hover:text-state-warn shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+
         {proximaReserva ? (
           <Card className="border-l-4 overflow-hidden" style={{ borderLeftColor: "#E11B22" }}>
             <CardBody>
@@ -65,28 +81,22 @@ export default function InicioPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant={proximaReserva.reserva.estado === "en_espera" ? "warning" : "success"}>
-                      {proximaReserva.reserva.estado === "en_espera" ? (
-                        <><Hourglass className="w-3 h-3" /> En espera #{proximaReserva.reserva.posicion_waitlist}</>
-                      ) : (
-                        <><CheckCircle2 className="w-3 h-3" /> Confirmada</>
-                      )}
+                      {proximaReserva.reserva.estado === "en_espera"
+                        ? <><Hourglass className="w-3 h-3" /> En espera #{proximaReserva.reserva.posicion_waitlist}</>
+                        : <><CheckCircle2 className="w-3 h-3" /> Confirmada</>}
                     </Badge>
-                    <span className="text-xs text-muted">Próxima reserva</span>
+                    <span className="text-xs text-muted">Pr\u00f3xima reserva</span>
                   </div>
                   <p className="font-display text-xl leading-tight mb-1">Ruta {proximaReserva.asignacion?.id_ruta}</p>
                   <div className="flex flex-wrap gap-3 text-sm text-muted">
                     <span className="flex items-center gap-1">
                       <CalendarCheck className="w-4 h-4" />
-                      {new Date(proximaReserva.asignacion!.fecha + "T12:00:00").toLocaleDateString("es-EC", {
-                        weekday: "long", day: "numeric", month: "long"
-                      })}
+                      {new Date(proximaReserva.asignacion!.fecha + "T12:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })}
                     </span>
                     <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{proximaReserva.asignacion!.hora_salida}</span>
                   </div>
                 </div>
-                <Link href="/app/mi-qr">
-                  <Button size="sm"><QrCode className="w-4 h-4" />Ver QR</Button>
-                </Link>
+                <Link href="/app/mi-qr"><Button size="sm"><QrCode className="w-4 h-4" />Ver QR</Button></Link>
               </div>
             </CardBody>
           </Card>
@@ -94,7 +104,7 @@ export default function InicioPage() {
           <Card className="border border-dashed">
             <CardBody className="text-center py-6">
               <Bus className="w-8 h-8 text-muted mx-auto mb-2" />
-              <p className="font-medium mb-1">Sin reservas próximas</p>
+              <p className="font-medium mb-1">Sin reservas pr\u00f3ximas</p>
               <p className="text-sm text-muted mb-3">Reserva tu cupo para viajar sin esperas.</p>
               <Link href="/app/reservar"><Button>Reservar ahora <ArrowRight className="w-4 h-4" /></Button></Link>
             </CardBody>
@@ -102,15 +112,15 @@ export default function InicioPage() {
         )}
 
         <div>
-          <h2 className="font-display text-lg mb-3">Accesos rápidos</h2>
+          <h2 className="font-display text-lg mb-3">Accesos r\u00e1pidos</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {quickLinks.map((q) => {
-              const Icon = q.icon;
+            {quickLinks.map((ql) => {
+              const Icon = ql.icon;
               return (
-                <Link key={q.href} href={q.href}>
-                  <div className={`${q.color} rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:opacity-90 transition-opacity`}>
+                <Link key={ql.href} href={ql.href}>
+                  <div className={`${ql.color} rounded-2xl p-4 flex flex-col items-center gap-2 text-center hover:opacity-90 transition-opacity`}>
                     <Icon className="w-6 h-6" />
-                    <span className="text-xs font-medium leading-tight">{q.label}</span>
+                    <span className="text-xs font-medium leading-tight">{ql.label}</span>
                   </div>
                 </Link>
               );
@@ -133,7 +143,7 @@ export default function InicioPage() {
                       </div>
                       <p className="font-display text-xl">{miRuta.nombre}</p>
                       <p className="text-sm text-muted flex items-center gap-1 mt-1">
-                        <MapPin className="w-3.5 h-3.5" />{miRuta.numero_paradas} paradas · {miRuta.dias_operacion.join(", ")}
+                        <MapPin className="w-3.5 h-3.5" />{miRuta.numero_paradas} paradas \u00b7 {miRuta.dias_operacion.join(", ")}
                       </p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />

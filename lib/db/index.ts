@@ -510,8 +510,15 @@ export const db = {
       if (error) throw error;
       return (data ?? []).map(normalizeMensaje);
     }
-    return getStore().mensajes
-      .filter((m) => m.destinatario_id === idUsuario || m.remitente_id === idUsuario)
+    const s = getStore();
+    const usuario = s.usuarios.find((u) => u.id_usuario === idUsuario);
+    const idRuta = usuario?.id_ruta ?? null;
+    return s.mensajes
+      .filter((m) =>
+        m.destinatario_id === idUsuario ||
+        m.remitente_id === idUsuario ||
+        (idRuta !== null && m.destinatario_ruta === idRuta)
+      )
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   },
 
