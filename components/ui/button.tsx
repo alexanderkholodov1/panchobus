@@ -36,9 +36,4 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       )}
       {...props}
     >
-      {loading && <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden />}
-      {children}
-    </button>
-  )
-);
-Button.displayName = "Button";
+      {loading && <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-tra

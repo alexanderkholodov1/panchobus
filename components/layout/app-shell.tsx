@@ -58,6 +58,8 @@ const DRIVER_NAV: NavItem[] = [
   { href: "/chofer/mensajes", label: "Mensajes", icon: MessageSquare }
 ];
 
+// "chofer" role = todo el personal de ruta (conductores + acompañantes)
+
 export function AppShell({
   children,
   role
@@ -98,7 +100,7 @@ export function AppShell({
     router.replace("/");
   };
 
-  const roleLabel = role === "admin" ? "Administración" : role === "chofer" ? "Chofer" : "Estudiante";
+  const roleLabel = role === "admin" ? "Administración" : role === "chofer" ? "Personal de Ruta" : "Estudiante";
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -207,7 +209,4 @@ export function AppShell({
         </div>
       )}
 
-      <main className="flex-1 min-w-0 pt-14 lg:pt-0">{children}</main>
-    </div>
-  );
-}
+    

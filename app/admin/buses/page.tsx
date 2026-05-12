@@ -22,7 +22,7 @@ export default function AdminBusesPage() {
 
   return (
     <AppShell role="admin">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
           <p className="text-sm text-muted mb-1">Flota</p>
           <h1 className="font-display text-3xl">Buses</h1>

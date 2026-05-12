@@ -30,7 +30,4 @@
     "eslint-plugin-import": "^2.25.4",
     "firebase-functions-test": "^3.4.1",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
-  },
-  "private": true
-}
+    "types

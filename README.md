@@ -1,126 +1,98 @@
 # Pancho Bus · USFQ
 
-> **Tu libertad, comienza aquí.**
-
-Plataforma digital para el servicio de transporte universitario **Pancho Bus** de la Universidad San Francisco de Quito. Reservas con QR, seguimiento operativo y gestión administrativa en una sola experiencia.
-
-## ¿Qué resuelve?
-
-El servicio Pancho Bus necesita una experiencia clara y moderna para reservas, abordaje y comunicación. Esta plataforma reemplaza procesos dispersos por un flujo unificado, verificable y orientado a la operación diaria.
-
-## Características
-
-**Estudiante**
-- Registro autoservicio con correo institucional `@usfq.edu.ec` / `@estud.usfq.edu.ec`
-- Mapa interactivo de rutas con paradas, horarios y estado del bus en tiempo real
-- Reservas con cupos visibles en vivo y lista de espera automática
-- Código QR único por reserva para abordar
-- Buscador por ruta, hora y parada
-- Modo claro/oscuro y experiencia mobile-first
-
-**Administrador**
-- Dashboard con KPIs operativos y alertas
-- CRUD de rutas, paradas, buses, choferes y asignaciones
-- Aprobación de cuentas, gestión de usuarios
-- Mensajería directa a choferes y estudiantes por ruta
-- **Insights con IA**: detección de rutas saturadas, recomendación de nuevos horarios, análisis de demanda
-
-**Chofer**
-- Vista de la ruta del día con paradas y mapa
-- Lista de pasajeros esperados
-- Escaneo de QR para validar abordaje
-- Reporte GPS desde la PWA del chofer (reemplaza OnTrack sin hardware adicional)
-- Comunicación con administración
+Plataforma web de gestión de transporte universitario para la Universidad San Francisco de Quito (USFQ).
+Centraliza reservas de cupos, abordaje por QR, seguimiento operativo y comunicación entre estudiantes, personal de ruta y administración.
 
 ## Stack
 
 | Capa | Tecnología |
-|---|---|
-| Frontend | Next.js 14 (App Router) + TypeScript + Tailwind CSS |
-| Auth + DB | Supabase (Postgres + Auth + RLS + Realtime) |
-| Mapas | MapLibre GL JS + OpenStreetMap |
-| IA | Gemini API (free tier) |
-| QR | `qrcode` (gen) + `html5-qrcode` (scan) |
-| Hosting | Firebase App Hosting (Spark, gratuito) |
-| i18n | `next-intl` |
-| Theming | `next-themes` |
+|------|-----------|
+| Framework | Next.js 14 (App Router, `"use client"` en páginas) |
+| UI | Tailwind CSS + design system USFQ personalizado |
+| Tipado | TypeScript |
+| Auth / DB | **Demo mode**: store en memoria + localStorage · **Producción**: Supabase (Postgres + Auth + RLS) |
+| Iconos | lucide-react |
+| Fuentes | Inter (sans) + Libre Baskerville (display) |
 
-Todo el stack es **gratuito** en sus tiers free.
-
-## Arranque local
-
-```bash
-# 1. Instalar dependencias
-npm install
-
-# 2. Configurar variables (opcional para modo demo)
-cp .env.example .env.local
-# Edita .env.local con tus credenciales Supabase si quieres persistencia real
-
-# 3. Levantar
-npm run dev
-```
-
-Abrí http://localhost:3000
-
-**Modo demo** (sin Supabase configurado): los datos viven en memoria + localStorage. La página `/login` ofrece acceso instantáneo como Estudiante / Admin / Chofer.
-
-**Modo Supabase real**:
-1. Crear proyecto en https://supabase.com (free tier).
-2. Ejecutar migraciones (próximas en `supabase/migrations/`).
-3. Pegar las claves en `.env.local`.
-
-## Despliegue en Firebase App Hosting
-
-```bash
-# Una sola vez
-npm install -g firebase-tools
-firebase login
-firebase init apphosting
-# Conectá el repo de GitHub y elegí branch main
-
-# Cada push a main despliega automáticamente
-git push origin main
-```
-
-El dominio será del tipo `panchobus.web.app` o el que configures.
-
-## Estructura del proyecto
+## Estructura de directorios
 
 ```
-app/                  Rutas Next.js (App Router)
-  ├── (public)        Landing, login, registro
-  ├── (student)       Área estudiante privada
-  ├── (admin)         Área administrativa
-  ├── (chofer)        Área chofer
-  └── api             Route handlers (server-only)
-components/
-  ├── brand/          Logo, marca
-  ├── ui/             Primitivos (button, card, input...)
-  ├── layout/         Headers, footers, app shell
-  ├── map/            Wrappers MapLibre
-  └── providers/      Theme, sesión
-lib/
-  ├── types.ts        Tipos del dominio
-  ├── utils.ts        Helpers (formatTime, haversine...)
-  ├── data/seed.ts    Datos sembrados (rutas reales USFQ)
-  ├── db/             Capa de acceso a datos (abstracción mock/Supabase)
-  └── supabase/       Clientes browser y server
-docs/                 Documentación técnica
-supabase/             Migraciones SQL
+panchobus/
+├── app/
+│   ├── page.tsx                  # Landing page pública
+│   ├── login/page.tsx            # Login
+│   ├── registro/page.tsx         # Registro de estudiantes
+│   ├── layout.tsx                # Root layout (providers, fuentes, metadata)
+│   ├── globals.css               # Variables CSS del design system
+│   ├── admin/                    # Panel de administración (rol: admin)
+│   │   ├── dashboard/page.tsx    # KPIs + salidas del día + top rutas
+│   │   ├── rutas/page.tsx        # CRUD rutas
+│   │   ├── buses/page.tsx        # Listado de buses y estados
+│   │   ├── choferes/page.tsx     # Listado de personal de ruta
+│   │   ├── asignaciones/page.tsx # Calendario semanal de salidas
+│   │   ├── reservas/page.tsx     # Todas las reservas + búsqueda + CSV export
+│   │   ├── usuarios/page.tsx     # Gestión de usuarios + crear conductores/admins
+│   │   ├── mensajes/page.tsx     # Mensajes a usuarios o rutas completas
+│   │   └── insights/page.tsx     # Análisis algorítmico de demanda
+│   ├── app/                      # Panel de estudiante (rol: estudiante)
+│   │   ├── inicio/page.tsx       # Dashboard personal con próxima reserva
+│   │   ├── rutas/page.tsx        # Explorador de rutas con búsqueda
+│   │   ├── rutas/[id]/page.tsx   # Detalle: paradas, operador, próximas salidas
+│   │   ├── reservar/page.tsx     # Wizard 3 pasos: ruta → fecha → confirmar
+│   │   ├── mis-reservas/page.tsx # Historial + próximas + cancelar
+│   │   ├── mi-qr/page.tsx        # QR de abordaje activo
+│   │   ├── horarios/page.tsx     # Calendario semanal de salidas
+│   │   └── perfil/page.tsx       # Edición de perfil + preferencias de tema
+│   └── chofer/                   # Panel de personal de ruta (rol: chofer)
+│       ├── hoy/page.tsx          # Asignación del día + GPS mock + paradas
+│       ├── pasajeros/page.tsx    # Lista de pasajeros de la asignación actual
+│       ├── escanear/page.tsx     # Escáner QR (placeholder + input manual)
+│       └── mensajes/page.tsx     # Inbox de mensajes de administración
+├── components/
+│   ├── brand/logo.tsx            # Logo SVG
+│   ├── layout/
+│   │   ├── app-shell.tsx         # Shell con sidebar (desktop) + dropdown (mobile)
+│   │   ├── public-header.tsx     # Header de landing
+│   │   └── public-footer.tsx     # Footer de landing
+│   ├── providers/
+│   │   ├── demo-session.tsx      # Contexto de sesión demo (base para Supabase)
+│   │   └── theme-provider.tsx    # next-themes
+│   └── ui/
+│       ├── badge.tsx             # Variantes: success/warning/error/info/default
+│       ├── button.tsx            # Con loading state y variantes
+│       ├── card.tsx              # Card + CardBody
+│       ├── input.tsx             # Input, Label, Select
+│       ├── skeleton.tsx          # Skeleton loader
+│       ├── theme-toggle.tsx      # Toggle claro/oscuro/sistema
+│       └── toaster.tsx           # Toast notifications
+├── lib/
+│   ├── types.ts                  # Todos los tipos TypeScript del dominio
+│   ├── utils.ts                  # cn(), initials(), formatDate()
+│   ├── data/seed.ts              # Datos demo: 8 rutas, 47 paradas, 9 usuarios
+│   ├── db/index.ts               # API de datos unificada (demo / Supabase)
+│   └── supabase/                 # Clientes browser y server de Supabase
+└── middleware.ts                 # Scaffold de protección de rutas
 ```
 
-## Documentación
+## Roles y acceso
 
-- `docs/PLAN.md` — Plan completo de arquitectura y desarrollo
-- `AI_CONTEXT.md` — Contexto para asistentes IA que continúen el proyecto
-- `docs/PRESENTACION.md` — Guía para presentar el proyecto
+| Rol | Ruta base | Cómo se crea |
+|-----|-----------|-------------|
+| `estudiante` | `/app/` | Se registra solo. Auto-aprobado al registrarse. |
+| `admin` | `/admin/` | Creado manualmente por un admin desde `/admin/usuarios`. |
+| `chofer` | `/chofer/` | Personal de ruta (conductores + acompañantes). Creado por admin. |
 
-## Contacto del servicio (USFQ)
+**Importante**: El rol `"chofer"` en código representa **todo el personal de ruta** — conductores y acompañantes que verifican QRs. En la UI se muestra como "Personal de Ruta". No renombrar el string `"chofer"` en código sin actualizar AppShell, redirects y seeds.
 
-- panchobus@usfq.edu.ec
-- Jairo Carvajal · jcarvajal@usfq.edu.ec · Oficina PF104
+## Demo mode
 
-## Licencia
+Sin variables de entorno de Supabase, la app corre en modo demo completo:
+- Store en memoria inicializado desde `lib/data/seed.ts`
+- Reservas, mensajes y usuarios nuevos persisten en `localStorage` → clave `panchobus-store-overrides`
+- Sesión persiste en `localStorage` → clave `panchobus-session-userid`
+- Cuentas demo predefinidas: `demo-student` / `demo-admin` / `demo-driver` (accesibles desde login)
 
-Uso interno USFQ.
+## Variables de entorno
+
+```env
+NEXT_PUBLIC_SUPABASE_

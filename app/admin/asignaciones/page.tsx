@@ -41,7 +41,7 @@ export default function AdminAsignacionesPage() {
 
   return (
     <AppShell role="admin">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
           <p className="text-sm text-muted mb-1">Planificación</p>
           <h1 className="font-display text-3xl">Asignaciones</h1>

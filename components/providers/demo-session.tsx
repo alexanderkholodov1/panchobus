@@ -60,6 +60,8 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
       direccion: data.direccion ?? "", id_ruta: data.id_ruta ?? null,
       rol: "estudiante", estado: "activo", created_at: new Date().toISOString()
     };
+    // Persist into the in-memory store so admin pages can find this user by id
+    await db.addUsuario(nuevo);
     localStorage.setItem(STORAGE_KEY, id);
     setUser(nuevo);
     return nuevo;
@@ -83,7 +85,4 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
 }
 
 export function useSession() {
-  const ctx = useContext(DemoSessionContext);
-  if (!ctx) throw new Error("useSession debe usarse dentro de DemoSessionProvider");
-  return ctx;
-}
+  const ctx = useContext(DemoSessio

@@ -241,26 +241,4 @@ export default function HomePage() {
             La plataforma entrega métricas claras, trazabilidad de reservas y evidencia operativa
             para tomar decisiones de movilidad con datos verificables.
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border text-sm">
-            <Bus className="w-4 h-4 text-primary" />
-            Servicio Pancho Bus · USFQ Movilidad
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl mb-4">Súmate al nuevo Pancho Bus.</h2>
-          <p className="text-muted mb-6">Una sola plataforma. Tres experiencias. Todo el campus, conectado.</p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/registro"><Button size="lg">Empezar ahora <ArrowRight className="w-4 h-4" /></Button></Link>
-            <Link href="/login"><Button size="lg" variant="outline">Iniciar sesión</Button></Link>
-          </div>
-        </div>
-      </section>
-
-      <PublicFooter />
-    </div>
-  );
-}
+          <div clas

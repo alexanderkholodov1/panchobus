@@ -125,7 +125,7 @@ export default function AdminInsightsPage() {
 
   return (
     <AppShell role="admin">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <p className="text-sm text-muted mb-1">Inteligencia artificial</p>

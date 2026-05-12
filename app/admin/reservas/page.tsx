@@ -68,7 +68,7 @@ export default function AdminReservasPage() {
 
   return (
     <AppShell role="admin">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <p className="text-sm text-muted mb-1">Gestión</p>

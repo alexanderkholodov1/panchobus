@@ -144,6 +144,15 @@ export const db = {
   async getUsuariosByRol(rol: Usuario["rol"]): Promise<Usuario[]> {
     return getStore().usuarios.filter((u) => u.rol === rol);
   },
+  async addUsuario(usuario: Usuario): Promise<Usuario> {
+    const s = getStore();
+    // Avoid duplicates by id
+    if (!s.usuarios.find((u) => u.id_usuario === usuario.id_usuario)) {
+      s.usuarios.push(usuario);
+      persist(s);
+    }
+    return usuario;
+  },
   async updateUsuario(id: string, patch: Partial<Usuario>): Promise<Usuario | null> {
     const s = getStore();
     const idx = s.usuarios.findIndex((u) => u.id_usuario === id);
@@ -243,15 +252,4 @@ export const db = {
       )
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   },
-  async createMensaje(m: Omit<Mensaje, "id_mensaje" | "created_at">): Promise<Mensaje> {
-    const s = getStore();
-    const nuevo: Mensaje = {
-      ...m,
-      id_mensaje: `msg-${Date.now()}`,
-      created_at: new Date().toISOString()
-    };
-    s.mensajes.push(nuevo);
-    persist(s);
-    return nuevo;
-  }
-};
+  async createMensaje(m: Omit<Mensaje, "id_mensa

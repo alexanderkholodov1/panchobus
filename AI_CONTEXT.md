@@ -1,164 +1,231 @@
 # AI_CONTEXT.md — Lectura obligatoria para cualquier IA que continúe este proyecto
 
+> **Leer COMPLETO antes de tocar cualquier archivo. Las secciones de "reglas" y "estado actual" son las más críticas.**
+
+---
+
 ## Qué es esto
 
 **Pancho Bus** es el servicio gratuito de transporte universitario de la **Universidad San Francisco de Quito (USFQ)**, Cumbayá, Ecuador. ~9.000 estudiantes lo usan a diario. Hoy vive embebido como pestaña en la app **Finder** (construida por Opinno EC), con UX primitiva, baja adopción (1K descargas, 3.0★) y procesos manuales (registro presencial en oficina PF104, formulario externo en OnTrack, comunicación informal con choferes).
 
-**Este repositorio** es la reconstrucción completa: una plataforma web dedicada, moderna, con tres roles (estudiante, admin, chofer), reservas con QR, mapa en vivo y analytics con IA.
+**Este repositorio** es la reconstrucción completa: una plataforma web dedicada con tres roles (estudiante, admin, chofer/personal de ruta), reservas con QR, seguimiento operativo y analytics con IA.
+
+---
 
 ## Contexto humano — léelo antes de tocar nada
 
 - Es un producto oficial en fase de demostración para autoridades USFQ. Debe sonar a implementación real, no a trabajo académico.
-- Cada decisión de diseño, copy y arquitectura debe sostener una lectura profesional y operativa. Cero placeholder text, cero copy genérico. Voz de marca USFQ ("Tu libertad, comienza aquí").
+- Cada decisión de diseño, copy y arquitectura debe sostener una lectura profesional y operativa.
+- Voz de marca: **"Tu libertad, comienza aquí"**. Tono institucional moderno. Cero placeholder text.
 
-## Requisitos del profesor (cumplimiento obligatorio)
-
-Del enunciado original:
-1. Landing page pública que explica el servicio.
-2. Registro/Login (rutas/paradas/horarios solo para autenticados).
-3. Home privado.
-4. Página por ruta con horarios, paradas y mapa.
-5. Buscador por rutas/horas/paradas.
-6. Esquema de base de datos.
-7. Trigger SQL `handle_new_user` para insertar en `public.usuarios` cuando se crea un `auth.users`.
-8. Validar dominios `@usfq.edu.ec` y `@estud.usfq.edu.ec`.
-9. Validar correo, código Banner y teléfono en registro.
-10. Password ≥ 6 caracteres (límite Supabase).
-11. RLS habilitado con políticas por rol.
-12. Ruta personal del usuario guardada en tabla `usuarios`.
-13. Rutas y paradas privadas (solo autenticados).
-14. Responsive mobile.
-
-**Backend**: Supabase (Postgres + Auth + RLS). **Mantener capa `lib/db/index.ts` como abstracción** — el día que migre a Firestore, solo se reemplaza ese archivo.
-
-**Hosting exigido por el usuario**: Firebase App Hosting (plan Spark gratuito), deploy automático desde GitHub. Dominio probable: `panchobus.web.app` o similar.
+---
 
 ## Stack y decisiones tomadas
 
-| Capa | Tecnología | Por qué |
-|------|-----------|---------|
-| Frontend | Next.js 14 App Router + TypeScript + Tailwind | SSR para landing (SEO), client para áreas privadas, soportado por Firebase App Hosting |
-| Auth + DB | Supabase (Postgres + Auth + RLS + Realtime) | Lo pidió el profesor; el esquema base ya existía |
-| Mapas | MapLibre GL JS + tiles OpenStreetMap | **Gratuito**, sin API key, sin Google Maps |
-| IA | Gemini API (free tier) directo, NO Genkit | Genkit añadía complejidad sin valor para el prototipo. Gemini free es suficiente |
-| QR | `qrcode` (gen) + `html5-qrcode` (scan) | Cliente puro, sin backend pesado |
-| i18n | `next-intl` | es-EC default, en, ru |
-| Theming | `next-themes` + CSS variables | Modo claro/oscuro persistente |
-| Hosting | Firebase App Hosting (Spark) | Lo pidió el usuario, gratuito |
+| Capa | Tecnología | Notas |
+|------|-----------|-------|
+| Framework | Next.js 14 App Router | `"use client"` en todas las páginas privadas |
+| UI | Tailwind CSS + design system USFQ | No cambiar los CSS variables de `globals.css` |
+| Tipado | TypeScript | Tipos en `lib/types.ts`, no duplicar |
+| Auth / DB | **Demo**: store memoria + localStorage · **Producción**: Supabase | Ver `lib/db/index.ts` |
+| Iconos | lucide-react | No mezclar con otras librerías de iconos |
+| Fuentes | Inter (sans) + Libre Baskerville (display) | Via `next/font` |
+| Theming | next-themes + CSS variables | `class` strategy |
 
 **TODO lo que se use debe ser gratuito.** No proponer servicios pagos sin permiso explícito.
 
+---
+
 ## Identidad visual (anclada al Manual USFQ oficial)
 
-Verificado contra `USFQ MANUAL IDENTIDAD.pdf` p. 07 + manual de inspiración 2024.
-
 **Paleta**:
-- `#E11B22` Rojo USFQ (primario)
+- `#E11B22` Rojo USFQ (primario) → `text-primary`, `bg-primary`
 - `#231F20` Negro USFQ
 - `#939598` Gris USFQ
-- `#FFFFFF` Blanco
-- `#F39200` Naranja Panchobus (del logo PNG original)
-- `#F9E8E8` Rojo claro · `#2A7D4F` Verde estado · `#E89F1F` Warn · `#C13030` Error
+- `#F39200` Naranja Panchobus (del logo original)
+- `#F9E8E8` Tint rojo · `#2A7D4F` Verde estado-ok · `#E89F1F` Warn · `#C13030` Error
 
-**Tipografía**: Libre Baskerville (display, ≡ Baskerville institucional) + Inter (body, ≡ Helvética institucional). Cargadas vía `next/font`.
+**Tipografía**: `font-display` = Libre Baskerville · `font-sans` = Inter
 
-**Voz de marca**: institucional pero moderna, alta legibilidad, contraste fuerte. Slogan núcleo: **"Tu libertad, comienza aquí"**. Espíritu del dragón USFQ: Libertad, Sabiduría, Poder, Visión, Fuerza, Energía, Belleza, Originalidad, Bienestar, Bondad, Permanencia, Evolucionar.
+**No usar emojis** en UI ni código salvo que el usuario los use primero.
 
-**No usar emojis** en UI ni en código (solo si el usuario los pide explícitamente).
+---
 
 ## Modelo de datos — fuente de verdad
 
-Definido en `lib/types.ts`. Extiende el esquema base del profesor (paradas, rutas, usuarios) con:
+Definido en `lib/types.ts`. Tablas principales:
 
-- `usuarios` con campos `rol` ('estudiante'|'admin'|'chofer'), `estado` ('pendiente'|'activo'|'suspendido'), `idioma`, `tema`
-- `buses` (id, placa, modelo, capacidad, estado, chofer asignado)
-- `asignaciones` (qué bus + chofer corre qué ruta qué día, cupos)
-- `reservas` (con qr_token firmado, posicion_waitlist, estado: confirmada/en_espera/cancelada/usada/no_show)
-- `bus_locations` (GPS histórico ligero)
-- `mensajes` (admin↔chofer, admin→ruta completa)
-- `eventos` (analytics para los flows IA)
+- `usuarios` — rol: `'estudiante'|'admin'|'chofer'`, estado: `'pendiente'|'activo'|'suspendido'`
+- `rutas` — con `color_hex`, `dias_operacion[]`, `estado`
+- `paradas` — con coordenadas lat/lng reales de Quito/Cumbayá, `tipo: origen|intermedia|destino`
+- `buses` — placa, modelo, capacidad, estado
+- `asignaciones` — qué bus+chofer corre qué ruta qué día, cupos disponibles/reservados
+- `reservas` — `qr_token`, `posicion_waitlist`, estado: `confirmada|en_espera|cancelada|usada|no_show`
+- `mensajes` — admin→usuario o admin→ruta completa
+- `bus_locations` — GPS histórico (tipo definido, no implementado aún)
+- `eventos` — analytics (tipo definido, no implementado aún)
 
-**Seed completo** en `lib/data/seed.ts`: 8 rutas reales del Pancho Bus USFQ con coordenadas de paradas reales en Quito/Cumbayá, choferes y buses ficticios pero plausibles, reservas demo del usuario `demo-student`.
+**Seed completo** en `lib/data/seed.ts`: 8 rutas reales del Pancho Bus USFQ, 47 paradas con coordenadas reales, 9 usuarios demo, asignaciones dinámicas por fecha actual.
 
-## Tres cuentas demo
+---
 
-Login con un click desde `/login`:
-- **Estudiante**: `demo-student` (Alexander Kholodov, ruta Lumbisí)
-- **Admin**: `demo-admin` (Jairo Carvajal — persona real, coordinador USFQ)
-- **Chofer**: `demo-driver` (Carlos Mendoza, ruta Lumbisí)
+## Roles y cuentas demo
 
-Auth real (login por credenciales y registro) también funciona contra los mismos datos seed.
+| Rol | URL base | Cómo se crea | Label en UI |
+|-----|----------|-------------|-------------|
+| `estudiante` | `/app/` | Se registra solo, auto-aprobado | "Estudiante" |
+| `admin` | `/admin/` | Admin crea desde `/admin/usuarios` | "Administración" |
+| `chofer` | `/chofer/` | Admin crea desde `/admin/usuarios` | **"Personal de Ruta"** |
 
-## Estado actual del código (snapshot)
+**⚠️ IMPORTANTE sobre el rol `"chofer"`**: En código es el string `"chofer"` pero en la UI se llama "Personal de Ruta" porque incluye tanto conductores como acompañantes (las señoras que verifican QRs en la fila de abordaje). NO renombrar el string `"chofer"` en código sin actualizar `app-shell.tsx`, redirects y seed.
 
-**Listo y funcional**:
-- Setup completo: package.json, tsconfig, tailwind, postcss, next.config, .env.example, .gitignore
-- Identidad: globals.css con CSS variables (claro/oscuro), `app/layout.tsx` con fonts, `components/brand/logo.tsx` (logo SVG recreado: pin con bus dentro, gradiente naranja→rojo, texto "Pancho" rojo + "bus" naranja)
-- Tipos: `lib/types.ts` completo
-- Seed: `lib/data/seed.ts` con 8 rutas, 47 paradas, 9 usuarios, 8 buses, 8 asignaciones, 5 reservas, 3 mensajes
-- Capa DB: `lib/db/index.ts` (abstracción mock + persistencia localStorage para reservas/mensajes/usuarios creados en sesión)
-- Supabase clients: `lib/supabase/client.ts` y `lib/supabase/server.ts` (devuelven null si no hay env, fallback automático a mocks)
-- Sesión: `components/providers/demo-session.tsx` (login por rol, por credenciales, registro)
-- UI primitives: button, input, label, select, textarea, card, badge, theme-toggle, skeleton, toaster
-- Layout: public-header, public-footer, app-shell (sidebar desktop + drawer mobile, 3 navegaciones según rol)
-- Páginas listas: `/` landing pública (hero rojo, cómo funciona, rutas activas, diferenciadores, CTA), `/login` (form + 3 botones demo), `/registro` (form completo con todas las validaciones del profesor)
+Cuentas demo predefinidas en seed:
+- `demo-student` → Alexander Kholodov, ruta A1 Lumbisí, estudiante
+- `demo-admin` → Jairo Carvajal, admin (coordinador real USFQ)
+- `demo-driver` → Carlos Mendoza, chofer ruta A1
 
-**FALTANTE — prioridades para la próxima sesión IA**:
+---
 
-Por orden de importancia para la demo:
+## Demo mode — cómo funciona la persistencia
 
-1. **Áreas privadas** (`app/(student)/`, `app/(admin)/`, `app/(chofer)/`) — todas las rutas del sitemap definido en `app-shell.tsx`. Las pestañas existen en la nav pero las páginas no.
-2. **Componente Map** (`components/map/route-map.tsx`) usando MapLibre GL JS + tiles OSM (https://demotiles.maplibre.org o https://tile.openstreetmap.org). Debe dibujar polilínea entre paradas + marcadores numerados + marcador animado del bus si hay `bus_locations`.
-3. **Generación de QR** en `/app/mi-qr` con paquete `qrcode` (cliente). El token ya existe en `reserva.qr_token`.
-4. **Escaneo QR** en `/chofer/escanear` con `html5-qrcode`. Llama `db.scanQR(token, idChofer)`.
-5. **Endpoint IA** `app/api/ai/insights/route.ts`: POST agrega datos de reservas/asignaciones, llama Gemini API con `GEMINI_API_KEY`, devuelve JSON con `resumen`, `rutas_saturadas`, `recomendaciones`. Pantalla `/admin/insights` lo consume.
-6. **Middleware** `middleware.ts` para proteger `/app/*`, `/admin/*`, `/chofer/*` (en demo: redirige a `/login` si no hay cookie/localStorage).
-7. **Buscador** en `/app/rutas` (filtro client-side por nombre/código/parada/hora).
-8. **Realtime simulado**: en página de detalle de ruta, refrescar cupos cada 10s desde `db.getAsignacion()`.
-9. **`apphosting.yaml`** en raíz: `runConfig: { cpu: 1, memoryMiB: 512, maxInstances: 1 }` para que App Hosting lo despliegue.
-10. **`firebase.json`** con apphosting backend.
+Sin variables de entorno Supabase, la app corre en demo mode:
+- `lib/db/index.ts` → store en memoria, inicializado con `structuredClone(SEED_*)`
+- Cambios (reservas, mensajes, usuarios nuevos) → persisten en `localStorage['panchobus-store-overrides']`
+- Sesión activa → `localStorage['panchobus-session-userid']`
+- `components/providers/demo-session.tsx` → `register()` llama `db.addUsuario()` para persistir el usuario en el store (fix mayo 2026 — sin esto, los usuarios registrados aparecían como "Desconocido" en admin)
 
-**Archivos del proyecto** (todos en `panchobus/`):
-```
-app/
-  globals.css, layout.tsx, page.tsx
-  login/page.tsx, registro/page.tsx
-components/
-  brand/logo.tsx
-  providers/theme-provider.tsx, demo-session.tsx
-  ui/button.tsx, input.tsx, card.tsx, badge.tsx, theme-toggle.tsx, skeleton.tsx, toaster.tsx
-  layout/public-header.tsx, public-footer.tsx, app-shell.tsx
-lib/
-  utils.ts, types.ts
-  data/seed.ts
-  db/index.ts
-  supabase/client.ts, server.ts
-docs/
-  PLAN.md (plan completo original)
-package.json, tsconfig.json, tailwind.config.ts, postcss.config.mjs
-next.config.mjs, next-env.d.ts, .env.example, .gitignore
-```
+Para resetear a estado limpio: borrar localStorage en el navegador.
 
-## Reglas de comportamiento para la próxima IA
+---
 
-1. **DOCUMENTA TODO**. Cada archivo nuevo lleva docstring arriba explicando propósito y decisiones no obvias. Cada función pública con JSDoc. Si añades una librería, justifica por qué en `docs/ARCHITECTURE.md`. Si tomás una decisión arquitectónica nueva, regístrala en `docs/DECISIONS.md` (formato ADR corto). **Es regla del usuario, no negociable.**
-2. **Pregunta antes de salirte del plan.** Si encontrás una solución mejor que la planeada, mencionarla con justificación antes de cambiar rumbo. No te tomes libertades silenciosas.
-3. **Cero alucinaciones.** No inventes nombres de rutas, choferes, datos USFQ que no estén en el seed. Si algo es ficticio, márcalo. Si una librería no existe en la versión mencionada, decir.
-4. **Solo opciones gratuitas.** No proponer servicios pagos.
-5. **Idioma**: Español por defecto en UI y comentarios visibles. Variables y código en inglés (estándar industria). Mensajes commit en inglés.
-6. **No emojis** salvo que el usuario los use primero.
-7. **No redundancia conversacional**. El usuario es CS, conciso, valora velocidad y precisión. No repitas su pregunta, no resumas lo que vas a hacer, hacelo.
-8. **Mantené el seed cómo single source of truth** del prototipo. Si agregás funcionalidad que necesita más datos, agregá al seed, no improvises en componentes.
-9. **Cualquier flujo nuevo (UI o backend) debe tener equivalencia conceptual en Supabase** para que la migración sea trivial: si llamás `db.createReserva()` el equivalente SQL ya está documentado en `docs/PLAN.md` §3.
-10. **Quality bar**: el prototipo debe poder mostrarse a Jairo Carvajal o a un decano sin que se note que es académico. Cero "TODO" visibles, cero pantallas en blanco, cero links rotos.
+## Estado actual del código (mayo 2026)
 
-## Contactos reales (no inventar otros)
+### ✅ Implementado y funcional
 
-- `panchobus@usfq.edu.ec` — correo oficial del servicio
-- Jairo Carvajal · `jcarvajal@usfq.edu.ec` · Coordinador de movilidad · Oficina PF104, Campus Cumbayá
-- Sistema actual: app **Finder** (Opinno EC) en Play Store / App Store — referencia, no integrar
-- Sistema previo: **OnTrack** — referencia, no integrar
+**Infraestructura:**
+- Setup completo: package.json, tsconfig, tailwind, next.config, globals.css, layout.tsx
+- Design system: CSS variables claro/oscuro, todos los componentes UI
+- `lib/types.ts` completo, `lib/db/index.ts` con API completa, `lib/data/seed.ts` con datos realistas
+- Auth demo: login por rol, login por credenciales, registro, logout, refresh
 
-## Memoria persistente del usuario
+**AppShell** (`components/layout/app-shell.tsx`):
+- Sidebar fija 256px en desktop, dropdown en mobile
+- Auto-redirect por rol: estudiante→`/app/inicio`, admin→`/admin/dashboard`, chofer→`/chofer/hoy`
+- Redirige a `/login` si no hay sesión
 
-El usuario tiene memoria activa en `C:\Users\AlexAmaze\AppData\Roaming\Claude\local-agent-mode-sessions\f3c9289f-26bb-4ced-934a-5e46d6326038\3268234a-505b-48fc-ba0b-40a7bffa90d7\spaces\d07750da-eed2-4634-a202-fe05464e6b35\memory\` — leela al iniciar sesión nueva. Contiene `project_panchobus.md` (contexto completo del servicio real) y `user_alexander.md` (perfil del usuario y preferencias de colaboración).
+**Landing page** (`app/page.tsx`): hero, cómo funciona, acceso/privacidad, diferenciadores, CTA
+
+**Panel Admin** (9 páginas en `app/admin/`):
+- `dashboard` — KPIs (reservas hoy, ocupación %, rutas activas, pendientes), salidas del día, top rutas
+- `rutas` — CRUD con color picker y días de operación
+- `buses` — listado con estados
+- `choferes` — listado con asignación del día destacada
+- `asignaciones` — calendario semanal con nav prev/next
+- `reservas` — tabla con búsqueda por nombre/QR, filtro estado/ruta, export CSV, cancelar
+- `usuarios` — lista completa + formulario crear conductor/admin + aprobar/suspender
+- `mensajes` — enviar a usuario específico o a ruta completa
+- `insights` — análisis algorítmico de demanda (sin Gemini API — puro client-side)
+
+**Panel Estudiante** (8 páginas en `app/app/`):
+- `inicio` — saludo por hora, próxima reserva, quick links, mi ruta, stats
+- `rutas` — explorador con búsqueda y filtro activa/suspendida
+- `rutas/[id]` — detalle con hero de color, operador, timeline de paradas, próximas salidas
+- `reservar` — wizard 3 pasos con lista de espera automática, pre-selección por query params
+- `mis-reservas` — tabs próximas/historial, cancelar, ver QR
+- `mi-qr` — QR SVG determinístico (21×21), selector si hay varias reservas activas
+- `horarios` — calendario semanal navegable con filtro por ruta
+- `perfil` — edición de datos + selector de tema (claro/oscuro/sistema)
+
+**Panel Personal de Ruta** (4 páginas en `app/chofer/`):
+- `hoy` — asignación del día, GPS mock (produce toast "GPS activo"), timeline de paradas
+- `pasajeros` — stats abordaron/esperando/lista espera, barra de ocupación, lista con estado QR
+- `escanear` — UI de cámara (placeholder visual) + input manual, llama `db.scanQR()`, muestra resultado
+- `mensajes` — inbox filtrado para este usuario, indicador de no leído
+
+**Middleware** (`middleware.ts`): scaffold de protección de rutas (actualmente pass-through — los redirects los hace AppShell en cliente)
+
+---
+
+### 🔧 Pendiente — próximas IAs deben abordar esto
+
+**Alta prioridad (necesario para producción):**
+
+1. **Supabase — schema SQL**
+   - Crear migrations para todas las tablas de `lib/types.ts`
+   - Trigger `handle_new_user` en `auth.users` → insert en `public.usuarios` con rol `'estudiante'` y estado `'activo'`
+   - Validar dominios `@usfq.edu.ec` y `@estud.usfq.edu.ec` en trigger o policy
+   - RLS: estudiantes ven sus propias reservas, choferes ven su ruta, admins ven todo
+   - Añadir branch Supabase en `lib/db/index.ts` (la abstracción ya está preparada)
+
+2. **GPS real** — `app/chofer/hoy/page.tsx`
+   - Reemplazar mock con `navigator.geolocation.watchPosition`
+   - Endpoint `POST /api/gps` → insert en `bus_locations`
+   - Supabase Realtime para que la posición llegue a estudiantes en tiempo real
+
+3. **Cámara QR** — `app/chofer/escanear/page.tsx`
+   - Integrar `jsQR` o `@zxing/browser` (requiere HTTPS + permisos de cámara)
+   - El backend ya está: `db.scanQR(token, idChofer)` devuelve la reserva actualizada
+
+4. **Email transaccional**
+   - Confirmación de reserva al crear
+   - Notificación de cancelación
+   - Resend o SendGrid via Supabase Edge Functions
+
+**Media prioridad (mejoras UX):**
+
+5. **Mapa de paradas** en `app/app/rutas/[id]/page.tsx`
+   - Usar MapLibre GL JS + tiles OpenStreetMap (gratuito, sin API key)
+   - Las coordenadas ya están en el seed (lat/lng reales de cada parada)
+   - Polilínea entre paradas + marcadores numerados
+
+6. **Tracking en tiempo real** para estudiantes
+   - Nueva página o sección en detalle de ruta que muestre posición del bus
+   - Consume `bus_locations` via Supabase Realtime
+
+7. **PWA**: `manifest.json` + service worker para instalación en móvil
+
+8. **Push notifications**: alertas de cambio de estado de reserva
+
+**Deuda técnica:**
+
+9. Eliminar archivos legacy que no se usan:
+   - `functions/` (Firebase/Genkit)
+   - `firebase.json`, `apphosting.yaml`, `database.rules.json`
+   *(Primero confirmar con el usuario si Firebase Hosting sigue siendo el target de deploy)*
+
+10. `middleware.ts`: cuando se integre Supabase, verificar cookie `sb-access-token` y redirigir a `/login` si no existe o expiró
+
+11. `app/admin/insights/page.tsx`: actualmente hace análisis puramente algorítmico. Cuando esté disponible `GEMINI_API_KEY`, añadir llamada a `POST /api/ai/insights` que agregue datos y use Gemini API para generar recomendaciones en lenguaje natural
+
+---
+
+## Requisitos del profesor (checklist)
+
+1. ✅ Landing page pública
+2. ✅ Registro/Login — rutas privadas detrás de auth
+3. ✅ Home privado (dashboard por rol)
+4. ✅ Página por ruta con horarios y paradas — **falta mapa** (pendiente #5)
+5. ✅ Buscador por rutas/código/descripción
+6. ⏳ Esquema SQL de base de datos — pendiente (Supabase migrations)
+7. ⏳ Trigger `handle_new_user` — pendiente
+8. ⏳ Validación de dominio `@usfq.edu.ec` — pendiente (en demo: cualquier correo funciona)
+9. ✅ Validaciones en formulario de registro
+10. ✅ Password ≥ 6 caracteres (validado en cliente)
+11. ⏳ RLS en Supabase — pendiente
+12. ✅ Ruta personal del usuario (campo `id_ruta` en `usuarios`)
+13. ✅ Rutas/paradas privadas (detrás de auth — AppShell redirige a /login)
+14. ✅ Responsive mobile
+
+---
+
+## Reglas críticas para la próxima IA
+
+1. **Lee el README.md** antes de empezar — tiene la estructura de archivos actualizada.
+2. **No hacer `git revert`** sin entender exactamente el efecto. En mayo 2026 un revert eliminó toda la carpeta `app/` y hubo que restaurar 21 páginas.
+3. **No eliminar carpetas con bash** en el workspace montado de Windows.
+4. **El sandbox Linux de Cowork no puede crear archivos en la carpeta Windows**: usa el `Write` tool de Cowork, nunca `touch`/`cp`/`echo >` para crear archivos nuevos.
+5. **`npm install` desde Windows**, no desde el sandbox Linux (el mount no soporta node_modules correctamente).
+6. **No inventar datos** que no estén en el seed (rutas, choferes, paradas, coordenadas).
+7. **No proponer servicios pagos** sin permiso del usuario.
+8. **Pregunta antes de salirte del plan**: si encontrás algo mejor, mencionarlo con justificación antes de implementar.
+9. **Idioma**: UI y comentar

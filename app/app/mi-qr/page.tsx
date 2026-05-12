@@ -146,10 +146,4 @@ export default function MiQrPage() {
             )}
             <Button variant="outline" onClick={load} className="w-full">
               <RefreshCw className="w-4 h-4" /> Actualizar
-            </Button>
-          </>
-        )}
-      </div>
-    </AppShell>
-  );
-}
+            <

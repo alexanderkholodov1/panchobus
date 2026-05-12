@@ -237,10 +237,4 @@ function ReservarContent() {
   );
 }
 
-export default function ReservarPage() {
-  return (
-    <Suspense fallback={null}>
-      <ReservarContent />
-    </Suspense>
-  );
-}
+e

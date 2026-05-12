@@ -39,6 +39,4 @@ export function PublicHeader() {
           )}
         </div>
       </div>
-    </header>
-  );
-}
+    </header
