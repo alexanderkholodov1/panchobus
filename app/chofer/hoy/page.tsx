@@ -32,7 +32,12 @@ export default function ChoferHoyPage() {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
     db.getAsignacionesByChofer(user.id_usuario).then(async (asgs) => {
-      const hoy = asgs.find((a) => a.fecha === today) ?? asgs[0] ?? null;
+      const todayAsgs = asgs.filter((a) => a.fecha === today);
+      const hoy =
+        todayAsgs.find((a) => a.estado === "en_curso") ??
+        todayAsgs.sort((a, b) => a.hora_salida.localeCompare(b.hora_salida))[0] ??
+        asgs[0] ??
+        null;
       setAsignacion(hoy);
       if (hoy) {
         const [r, p] = await Promise.all([db.getRuta(hoy.id_ruta), db.getParadasByRuta(hoy.id_ruta)]);
@@ -74,8 +79,18 @@ export default function ChoferHoyPage() {
     setGpsError(null);
     if (!navigator.geolocation) { setGpsError("Este dispositivo no soporta geolocalización."); return; }
     watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => { const c: GeoCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, velocidad: pos.coords.speed, precision: pos.coords.accuracy }; setCoords(c); coordsRef.current = c; },
-      (err) => { const msgs: Record<number,string> = {1:"Permiso de ubicación denegado.",2:"No se pudo determinar la ubicación.",3:"Tiempo de espera agotado."}; setGpsError(msgs[err.code]??"Error de geolocalización."); setTracking(false); },
+      (pos) => {
+        const c: GeoCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, velocidad: pos.coords.speed, precision: pos.coords.accuracy };
+        setCoords(c); coordsRef.current = c;
+      },
+      (err) => {
+        const msgs: Record<number, string> = {
+          1: "Permiso de ubicación denegado.",
+          2: "No se pudo determinar la ubicación.",
+          3: "Tiempo de espera agotado."
+        };
+        setGpsError(msgs[err.code] ?? "Error de geolocalización."); setTracking(false);
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
     intervalRef.current = setInterval(() => { if (coordsRef.current) enviarUbicacion(coordsRef.current); }, 15000);
@@ -122,10 +137,22 @@ export default function ChoferHoyPage() {
             </div>
             <h2 className="font-display text-2xl">{ruta?.nombre ?? `Ruta ${asignacion.id_ruta}`}</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted" /><div><p className="text-xs text-muted">Salida</p><p className="font-medium">{asignacion.hora_salida}</p></div></div>
-              <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted" /><div><p className="text-xs text-muted">Regreso</p><p className="font-medium">{asignacion.hora_regreso}</p></div></div>
-              <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted" /><div><p className="text-xs text-muted">Paradas</p><p className="font-medium">{paradas.length}</p></div></div>
-              <div className="flex items-center gap-2"><Bus className="w-4 h-4 text-muted" /><div><p className="text-xs text-muted">Pasajeros</p><p className="font-medium">{asignacion.cupos_reservados} / {asignacion.cupos_disponibles}</p></div></div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted" />
+                <div><p className="text-xs text-muted">Salida</p><p className="font-medium">{asignacion.hora_salida}</p></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted" />
+                <div><p className="text-xs text-muted">Regreso</p><p className="font-medium">{asignacion.hora_regreso}</p></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-muted" />
+                <div><p className="text-xs text-muted">Paradas</p><p className="font-medium">{paradas.length}</p></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Bus className="w-4 h-4 text-muted" />
+                <div><p className="text-xs text-muted">Pasajeros</p><p className="font-medium">{asignacion.cupos_reservados} / {asignacion.cupos_disponibles}</p></div>
+              </div>
             </div>
 
             {asignacion.estado !== "completada" && (
@@ -174,9 +201,12 @@ export default function ChoferHoyPage() {
                 <button onClick={() => setAvisoOpen(false)} className="text-muted hover:text-foreground"><X className="w-5 h-5" /></button>
               </div>
               <p className="text-sm text-muted">El mensaje aparecerá en el inicio de todos los pasajeros de esta ruta.</p>
-              <textarea className="w-full h-28 px-3 py-2 rounded-lg border border-border bg-surface-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              <textarea
+                className="w-full h-28 px-3 py-2 rounded-lg border border-border bg-surface-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
                 placeholder="Ej: El bus llegará con 10 minutos de retraso…"
-                value={avisoTexto} onChange={(e) => setAvisoTexto(e.target.value)} />
+                value={avisoTexto}
+                onChange={(e) => setAvisoTexto(e.target.value)}
+              />
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setAvisoOpen(false)}>Cancelar</Button>
                 <Button className="flex-1" loading={avisoLoading} disabled={!avisoTexto.trim()} onClick={enviarAviso}>Enviar</Button>
@@ -191,11 +221,19 @@ export default function ChoferHoyPage() {
             {paradas.map((p, i) => (
               <div key={p.id_parada} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ borderColor: ruta?.color_hex ?? "#E11B22", background: p.tipo !== "intermedia" ? ruta?.color_hex : "transparent", color: p.tipo !== "intermedia" ? "white" : ruta?.color_hex }}>
+                  <div
+                    className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{
+                      borderColor: ruta?.color_hex ?? "#E11B22",
+                      background: p.tipo !== "intermedia" ? ruta?.color_hex : "transparent",
+                      color: p.tipo !== "intermedia" ? "white" : ruta?.color_hex,
+                    }}
+                  >
                     {i + 1}
                   </div>
-                  {i < paradas.length - 1 && <div className="w-0.5 flex-1 my-1" style={{ background: `${ruta?.color_hex ?? "#E11B22"}40` }} />}
+                  {i < paradas.length - 1 && (
+                    <div className="w-0.5 flex-1 my-1" style={{ background: `${ruta?.color_hex ?? "#E11B22"}40` }} />
+                  )}
                 </div>
                 <div className="pb-3 flex-1">
                   <div className="flex justify-between items-center">
