@@ -1,16 +1,12 @@
 /**
- * Capa de acceso a datos — abstracción sobre Supabase / mocks.
+ * Capa de acceso a datos — abstracción sobre Supabase / demo mode.
  *
- * Diseño: todas las páginas de la app consumen estas funciones, NUNCA
- * acceden directamente a Supabase o al seed. Esto permite:
+ * Cuando NEXT_PUBLIC_SUPABASE_URL está definido → usa Supabase (producción).
+ * Cuando no → usa store en memoria + localStorage (demo mode).
  *
- *  1. Funcionar en modo demo sin Supabase configurado.
- *  2. Migrar a Firestore/Realtime DB en el futuro cambiando solo este archivo.
- *
- * Cuando `NEXT_PUBLIC_SUPABASE_URL` está definido, se delega al cliente
- * Supabase. Si no, devuelve los datos del seed con persistencia opcional en
- * localStorage para reservas/mensajes creados durante la sesión.
+ * Todas las páginas consumen `db.*` — nunca acceden directamente a Supabase.
  */
+
 import {
   SEED_ASIGNACIONES,
   SEED_BUSES,
@@ -30,8 +26,26 @@ import type {
   Usuario
 } from "@/lib/types";
 
+const IS_SUPABASE =
+  typeof process !== "undefined" &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 // ============================================================
-// Estado en memoria (mutable durante la sesión)
+// SUPABASE CLIENT (lazy — solo si está configurado)
+// ============================================================
+function getSupabase() {
+  if (!IS_SUPABASE) return null;
+  // Dynamic import para evitar errores en demo mode
+  const { createBrowserClient } = require("@supabase/ssr");
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+
+// ============================================================
+// DEMO MODE — Store en memoria + localStorage
 // ============================================================
 type Store = {
   usuarios: Usuario[];
@@ -43,12 +57,11 @@ type Store = {
   mensajes: Mensaje[];
 };
 
-let store: Store | null = null;
+let _store: Store | null = null;
 
 function getStore(): Store {
-  if (store) return store;
-  // Deep clone para no mutar las constantes
-  store = {
+  if (_store) return _store;
+  _store = {
     usuarios: structuredClone(SEED_USUARIOS),
     rutas: structuredClone(SEED_RUTAS),
     paradas: structuredClone(SEED_PARADAS),
@@ -57,21 +70,18 @@ function getStore(): Store {
     reservas: structuredClone(SEED_RESERVAS),
     mensajes: structuredClone(SEED_MENSAJES)
   };
-  // Hidratar desde localStorage si estamos en cliente
   if (typeof window !== "undefined") {
     try {
       const persisted = localStorage.getItem("panchobus-store-overrides");
       if (persisted) {
-        const overrides = JSON.parse(persisted);
-        if (overrides.reservas) store.reservas = overrides.reservas;
-        if (overrides.mensajes) store.mensajes = overrides.mensajes;
-        if (overrides.usuarios) store.usuarios = overrides.usuarios;
+        const o = JSON.parse(persisted);
+        if (o.reservas) _store.reservas = o.reservas;
+        if (o.mensajes) _store.mensajes = o.mensajes;
+        if (o.usuarios) _store.usuarios = o.usuarios;
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
-  return store;
+  return _store;
 }
 
 function persist(s: Store) {
@@ -79,30 +89,46 @@ function persist(s: Store) {
   try {
     localStorage.setItem(
       "panchobus-store-overrides",
-      JSON.stringify({
-        reservas: s.reservas,
-        mensajes: s.mensajes,
-        usuarios: s.usuarios
-      })
+      JSON.stringify({ reservas: s.reservas, mensajes: s.mensajes, usuarios: s.usuarios })
     );
-  } catch {
-    // ignore quota errors
-  }
+  } catch { /* ignore quota errors */ }
 }
 
 // ============================================================
-// API pública
+// API PÚBLICA
 // ============================================================
-
 export const db = {
-  // ---------- RUTAS ----------
+
+  // ──────────────────────────────────────────────────────────
+  // RUTAS
+  // ──────────────────────────────────────────────────────────
   async getRutas(): Promise<Ruta[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("rutas").select("*").order("codigo");
+      if (error) throw error;
+      return data ?? [];
+    }
     return getStore().rutas;
   },
+
   async getRuta(id: number): Promise<Ruta | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("rutas").select("*").eq("id_ruta", id).single();
+      if (error) return null;
+      return data;
+    }
     return getStore().rutas.find((r) => r.id_ruta === id) ?? null;
   },
+
   async createRuta(r: Omit<Ruta, "id_ruta">): Promise<Ruta> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("rutas").insert(r).select().single();
+      if (error) throw error;
+      return data;
+    }
     const s = getStore();
     const id_ruta = Math.max(0, ...s.rutas.map((x) => x.id_ruta)) + 1;
     const nueva: Ruta = { ...r, id_ruta };
@@ -110,7 +136,14 @@ export const db = {
     persist(s);
     return nueva;
   },
+
   async updateRuta(id: number, patch: Partial<Ruta>): Promise<Ruta | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("rutas").update(patch).eq("id_ruta", id).select().single();
+      if (error) return null;
+      return data;
+    }
     const s = getStore();
     const idx = s.rutas.findIndex((r) => r.id_ruta === id);
     if (idx < 0) return null;
@@ -118,42 +151,102 @@ export const db = {
     persist(s);
     return s.rutas[idx];
   },
+
   async deleteRuta(id: number): Promise<void> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { error } = await supabase.from("rutas").delete().eq("id_ruta", id);
+      if (error) throw error;
+      return;
+    }
     const s = getStore();
     s.rutas = s.rutas.filter((r) => r.id_ruta !== id);
     persist(s);
   },
 
-  // ---------- PARADAS ----------
+  // ──────────────────────────────────────────────────────────
+  // PARADAS
+  // ──────────────────────────────────────────────────────────
   async getParadasByRuta(id_ruta: number): Promise<Parada[]> {
-    return getStore()
-      .paradas.filter((p) => p.id_ruta === id_ruta)
-      .sort((a, b) => a.orden - b.orden);
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("paradas").select("*").eq("id_ruta", id_ruta).order("orden");
+      if (error) throw error;
+      return data ?? [];
+    }
+    return getStore().paradas.filter((p) => p.id_ruta === id_ruta).sort((a, b) => a.orden - b.orden);
   },
+
   async getAllParadas(): Promise<Parada[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("paradas").select("*").order("id_ruta, orden");
+      if (error) throw error;
+      return data ?? [];
+    }
     return getStore().paradas;
   },
 
-  // ---------- USUARIOS ----------
+  // ──────────────────────────────────────────────────────────
+  // USUARIOS
+  // ──────────────────────────────────────────────────────────
   async getUsuarios(): Promise<Usuario[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("usuarios").select("*").order("nombre");
+      if (error) throw error;
+      return data ?? [];
+    }
     return getStore().usuarios;
   },
+
   async getUsuario(id: string): Promise<Usuario | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("usuarios").select("*").eq("id_usuario", id).single();
+      if (error) return null;
+      return data;
+    }
     return getStore().usuarios.find((u) => u.id_usuario === id) ?? null;
   },
+
   async getUsuariosByRol(rol: Usuario["rol"]): Promise<Usuario[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("usuarios").select("*").eq("rol", rol);
+      if (error) throw error;
+      return data ?? [];
+    }
     return getStore().usuarios.filter((u) => u.rol === rol);
   },
+
   async addUsuario(usuario: Usuario): Promise<Usuario> {
+    if (IS_SUPABASE) {
+      // En Supabase el insert lo hace el trigger handle_new_user.
+      // Este método solo se usa para crear choferes/admins desde el panel admin.
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("usuarios").upsert(usuario, { onConflict: "id_usuario" }).select().single();
+      if (error) throw error;
+      return data;
+    }
     const s = getStore();
-    // Avoid duplicates by id
     if (!s.usuarios.find((u) => u.id_usuario === usuario.id_usuario)) {
       s.usuarios.push(usuario);
       persist(s);
     }
     return usuario;
   },
+
   async updateUsuario(id: string, patch: Partial<Usuario>): Promise<Usuario | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("usuarios").update(patch).eq("id_usuario", id).select().single();
+      if (error) return null;
+      return data;
+    }
     const s = getStore();
     const idx = s.usuarios.findIndex((u) => u.id_usuario === id);
     if (idx < 0) return null;
@@ -162,43 +255,150 @@ export const db = {
     return s.usuarios[idx];
   },
 
-  // ---------- BUSES ----------
+  // ──────────────────────────────────────────────────────────
+  // BUSES
+  // ──────────────────────────────────────────────────────────
   async getBuses(): Promise<Bus[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.from("buses").select("*").order("placa");
+      if (error) throw error;
+      return data ?? [];
+    }
     return getStore().buses;
   },
 
-  // ---------- ASIGNACIONES ----------
+  // ──────────────────────────────────────────────────────────
+  // ASIGNACIONES
+  // ──────────────────────────────────────────────────────────
   async getAsignaciones(): Promise<Asignacion[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("asignaciones").select("*").order("fecha", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map(normalizeAsignacion);
+    }
     return getStore().asignaciones;
   },
+
   async getAsignacion(id: string): Promise<Asignacion | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("asignaciones").select("*").eq("id_asignacion", id).single();
+      if (error) return null;
+      return normalizeAsignacion(data);
+    }
     return getStore().asignaciones.find((a) => a.id_asignacion === id) ?? null;
   },
+
   async getAsignacionesByFecha(fecha: string): Promise<Asignacion[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("asignaciones").select("*").eq("fecha", fecha);
+      if (error) throw error;
+      return (data ?? []).map(normalizeAsignacion);
+    }
     return getStore().asignaciones.filter((a) => a.fecha === fecha);
   },
+
   async getAsignacionesByChofer(idChofer: string): Promise<Asignacion[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("asignaciones").select("*").eq("id_chofer", idChofer);
+      if (error) throw error;
+      return (data ?? []).map(normalizeAsignacion);
+    }
     return getStore().asignaciones.filter((a) => a.id_chofer === idChofer);
   },
+
   async getAsignacionesByRuta(idRuta: number): Promise<Asignacion[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("asignaciones").select("*").eq("id_ruta", idRuta).order("fecha");
+      if (error) throw error;
+      return (data ?? []).map(normalizeAsignacion);
+    }
     return getStore().asignaciones.filter((a) => a.id_ruta === idRuta);
   },
 
-  // ---------- RESERVAS ----------
+  // ──────────────────────────────────────────────────────────
+  // RESERVAS
+  // ──────────────────────────────────────────────────────────
   async getReservas(): Promise<Reserva[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("reservas").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(normalizeReserva);
+    }
     return getStore().reservas;
   },
+
   async getReservasByUsuario(idUsuario: string): Promise<Reserva[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("reservas").select("*").eq("id_usuario", idUsuario)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(normalizeReserva);
+    }
     return getStore().reservas.filter((r) => r.id_usuario === idUsuario);
   },
+
   async getReservasByAsignacion(idAsignacion: string): Promise<Reserva[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("reservas").select("*").eq("id_asignacion", idAsignacion);
+      if (error) throw error;
+      return (data ?? []).map(normalizeReserva);
+    }
     return getStore().reservas.filter((r) => r.id_asignacion === idAsignacion);
   },
+
   async createReserva(
     idUsuario: string,
     idAsignacion: string,
     observaciones?: string
   ): Promise<Reserva> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      // Verificar cupos disponibles
+      const { data: asg } = await supabase
+        .from("asignaciones").select("cupos_disponibles, cupos_reservados").eq("id_asignacion", idAsignacion).single();
+      const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
+      // Posición en lista de espera
+      let posicion_waitlist: number | null = null;
+      if (enEspera) {
+        const { count } = await supabase
+          .from("reservas").select("*", { count: "exact", head: true })
+          .eq("id_asignacion", idAsignacion).eq("estado", "en_espera");
+        posicion_waitlist = (count ?? 0) + 1;
+      }
+      const payload = {
+        id_usuario: idUsuario,
+        id_asignacion: idAsignacion,
+        estado: enEspera ? "en_espera" : "confirmada",
+        posicion_waitlist
+      };
+      const { data, error } = await supabase.from("reservas").insert(payload).select().single();
+      if (error) throw error;
+      // Actualizar cupos si confirmada
+      if (!enEspera) {
+        await supabase.from("asignaciones")
+          .update({ cupos_reservados: (asg?.cupos_reservados ?? 0) + 1 })
+          .eq("id_asignacion", idAsignacion);
+      }
+      return normalizeReserva(data);
+    }
+    // Demo mode
     const s = getStore();
     const asg = s.asignaciones.find((a) => a.id_asignacion === idAsignacion);
     const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
@@ -207,11 +407,10 @@ export const db = {
       id_usuario: idUsuario,
       id_asignacion: idAsignacion,
       estado: enEspera ? "en_espera" : "confirmada",
-      qr_token: `QR-${idAsignacion}-${idUsuario}-${Math.random()
-        .toString(36)
-        .slice(2, 8)
-        .toUpperCase()}`,
-      posicion_waitlist: enEspera ? (asg ? s.reservas.filter((r) => r.id_asignacion === idAsignacion && r.estado === "en_espera").length + 1 : 1) : null,
+      qr_token: `QR-${idAsignacion}-${idUsuario}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      posicion_waitlist: enEspera
+        ? s.reservas.filter((r) => r.id_asignacion === idAsignacion && r.estado === "en_espera").length + 1
+        : null,
       observaciones,
       created_at: new Date().toISOString()
     };
@@ -220,7 +419,35 @@ export const db = {
     persist(s);
     return reserva;
   },
+
   async cancelReserva(idReserva: string): Promise<void> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data: reserva } = await supabase
+        .from("reservas").select("id_asignacion, estado").eq("id_reserva", idReserva).single();
+      await supabase.from("reservas").update({ estado: "cancelada" }).eq("id_reserva", idReserva);
+      if (reserva?.estado === "confirmada") {
+        // Liberar cupo y promover primer en_espera
+        const { data: asg } = await supabase
+          .from("asignaciones").select("cupos_reservados").eq("id_asignacion", reserva.id_asignacion).single();
+        if (asg) {
+          await supabase.from("asignaciones")
+            .update({ cupos_reservados: Math.max(0, asg.cupos_reservados - 1) })
+            .eq("id_asignacion", reserva.id_asignacion);
+        }
+        // Promover primer pasajero en espera
+        const { data: espera } = await supabase
+          .from("reservas").select("id_reserva")
+          .eq("id_asignacion", reserva.id_asignacion).eq("estado", "en_espera")
+          .order("posicion_waitlist").limit(1).single();
+        if (espera) {
+          await supabase.from("reservas")
+            .update({ estado: "confirmada", posicion_waitlist: null })
+            .eq("id_reserva", espera.id_reserva);
+        }
+      }
+      return;
+    }
     const s = getStore();
     const r = s.reservas.find((x) => x.id_reserva === idReserva);
     if (!r) return;
@@ -229,11 +456,26 @@ export const db = {
     if (asg && asg.cupos_reservados > 0) asg.cupos_reservados -= 1;
     persist(s);
   },
+
   async scanQR(qrToken: string, idChofer: string): Promise<Reserva | null> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data: reserva } = await supabase
+        .from("reservas").select("*").eq("qr_token", qrToken).single();
+      if (!reserva) return null;
+      if (reserva.estado === "usada") return normalizeReserva(reserva);
+      const { data, error } = await supabase
+        .from("reservas")
+        .update({ estado: "usada" })
+        .eq("qr_token", qrToken)
+        .select().single();
+      if (error) return null;
+      return normalizeReserva(data);
+    }
     const s = getStore();
     const r = s.reservas.find((x) => x.qr_token === qrToken);
     if (!r) return null;
-    if (r.estado === "usada") return r; // ya escaneada
+    if (r.estado === "usada") return r;
     r.estado = "usada";
     r.qr_escaneado_at = new Date().toISOString();
     r.qr_escaneado_por = idChofer;
@@ -241,18 +483,51 @@ export const db = {
     return r;
   },
 
-  // ---------- MENSAJES ----------
+  // ──────────────────────────────────────────────────────────
+  // MENSAJES
+  // ──────────────────────────────────────────────────────────
   async getMensajes(): Promise<Mensaje[]> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("mensajes").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(normalizeMensaje);
+    }
     return getStore().mensajes;
   },
+
   async getMensajesDeUsuario(idUsuario: string): Promise<Mensaje[]> {
-    return getStore()
-      .mensajes.filter(
-        (m) => m.destinatario_id === idUsuario || m.remitente_id === idUsuario
-      )
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("mensajes").select("*")
+        .or(`para_usuario.eq.${idUsuario}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(normalizeMensaje);
+    }
+    return getStore().mensajes
+      .filter((m) => m.destinatario_id === idUsuario || m.remitente_id === idUsuario)
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   },
+
   async createMensaje(m: Omit<Mensaje, "id_mensaje" | "created_at">): Promise<Mensaje> {
+    if (IS_SUPABASE) {
+      const supabase = getSupabase();
+      // Mapear campos del tipo interno a columnas de Supabase
+      const payload: Record<string, unknown> = {
+        asunto: m.asunto,
+        cuerpo: m.cuerpo,
+        de_usuario: m.remitente_id ?? null,
+        para_usuario: m.destinatario_id ?? null,
+        para_ruta: m.id_ruta ?? null,
+        leido: false
+      };
+      const { data, error } = await supabase.from("mensajes").insert(payload).select().single();
+      if (error) throw error;
+      return normalizeMensaje(data);
+    }
     const s = getStore();
     const nuevo: Mensaje = {
       ...m,
@@ -264,3 +539,53 @@ export const db = {
     return nuevo;
   }
 };
+
+// ============================================================
+// NORMALIZERS — mapean snake_case de Supabase al tipo interno
+// ============================================================
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeAsignacion(d: any): Asignacion {
+  return {
+    id_asignacion: String(d.id_asignacion),
+    id_ruta: d.id_ruta,
+    id_bus: d.id_bus ? String(d.id_bus) : null,
+    id_chofer: d.id_chofer ?? null,
+    fecha: d.fecha,
+    hora_salida: d.hora_salida,
+    hora_regreso: d.hora_regreso ?? "",
+    cupos_totales: d.cupos_totales ?? d.cupos_disponibles,
+    cupos_disponibles: d.cupos_disponibles,
+    cupos_reservados: d.cupos_reservados,
+    estado: d.estado,
+    created_at: d.created_at
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeReserva(d: any): Reserva {
+  return {
+    id_reserva: String(d.id_reserva),
+    id_usuario: d.id_usuario,
+    id_asignacion: String(d.id_asignacion),
+    estado: d.estado,
+    qr_token: d.qr_token,
+    posicion_waitlist: d.posicion_waitlist ?? null,
+    observaciones: d.observaciones ?? undefined,
+    created_at: d.created_at
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeMensaje(d: any): Mensaje {
+  return {
+    id_mensaje: String(d.id_mensaje),
+    remitente_id: d.de_usuario ?? null,
+    destinatario_id: d.para_usuario ?? null,
+    id_ruta: d.para_ruta ?? null,
+    asunto: d.asunto ?? "",
+    cuerpo: d.cuerpo,
+    leido: d.leido ?? false,
+    created_at: d.created_at
+  };
+}
