@@ -81,7 +81,7 @@ export default function RutaDetailPage() {
       const map = L.map("route-map", { zoomControl: true, scrollWheelZoom: false }).setView(center, 13);
       (window as any)._panchoMap = map;
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "\u00a9 <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>", maxZoom: 19,
+        attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>", maxZoom: 19,
       }).addTo(map);
       const latlngs: [number, number][] = stops.map((p) => [p.latitud!, p.longitud!]);
       L.polyline(latlngs, { color, weight: 5, opacity: 0.8 }).addTo(map);
@@ -90,7 +90,7 @@ export default function RutaDetailPage() {
         const html = `<div style="width:28px;height:28px;border-radius:50%;background:${isEndpoint ? color : "#ffffff"};border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${isEndpoint ? "#ffffff" : color};box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i + 1}</div>`;
         const icon = L.divIcon({ html, className: "", iconSize: [28, 28], iconAnchor: [14, 14] });
         L.marker([parada.latitud!, parada.longitud!], { icon }).addTo(map)
-          .bindPopup(`<b>${parada.nombre}</b><br/><small>${parada.tipo} &nbsp;\u00b7&nbsp; \u2191 ${parada.hora_salida}</small>`);
+          .bindPopup(`<b>${parada.nombre}</b><br/><small>${parada.tipo} &nbsp;·&nbsp; ↑ ${parada.hora_salida}</small>`);
       });
       map.fitBounds(L.latLngBounds(latlngs), { padding: [32, 32] });
       setMapReady(true);
@@ -142,7 +142,7 @@ export default function RutaDetailPage() {
       busMarkerRef.current.setLatLng([busLat, busLng]);
     } else {
       busMarkerRef.current = L.marker([busLat, busLng], { icon: busIcon, zIndexOffset: 1000 })
-        .addTo(map).bindPopup("<b>Bus en ruta</b><br/><small>Posici\u00f3n en tiempo real</small>");
+        .addTo(map).bindPopup("<b>Bus en ruta</b><br/><small>Posición en tiempo real</small>");
     }
   }, [busLat, busLng]);
 
@@ -171,7 +171,7 @@ export default function RutaDetailPage() {
             <div className="flex flex-wrap gap-4 mt-4 text-sm text-white/90">
               <span className="flex items-center gap-1.5"><Bus className="w-4 h-4" />{ruta.numero_asientos} asientos</span>
               <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{ruta.numero_paradas} paradas</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{ruta.dias_operacion.join(" \u00b7 ")}</span>
+              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{ruta.dias_operacion.join(" · ")}</span>
             </div>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function RutaDetailPage() {
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-2">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-7 h-7 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                      <p className="text-xs text-muted">Cargando mapa\u2026</p>
+                      <p className="text-xs text-muted">Cargando mapa…</p>
                     </div>
                   </div>
                 )}
@@ -237,7 +237,7 @@ export default function RutaDetailPage() {
               </div>
             )}
           </div>
-          {hasMapData && <p className="text-xs text-muted mt-1.5 text-right">Mapa: \u00a9 OpenStreetMap contributors</p>}
+          {hasMapData && <p className="text-xs text-muted mt-1.5 text-right">Mapa: © OpenStreetMap contributors</p>}
         </div>
 
         <div>
@@ -258,7 +258,7 @@ export default function RutaDetailPage() {
                       <p className="font-medium leading-tight">{p.nombre}</p>
                       {p.tipo !== "intermedia" && <Badge variant="default" className="text-xs mt-1">{p.tipo === "origen" ? "Origen" : "Destino"}</Badge>}
                     </div>
-                    <div className="text-right text-xs text-muted shrink-0"><p>\u2191 {p.hora_salida}</p><p>\u2193 {p.hora_regreso}</p></div>
+                    <div className="text-right text-xs text-muted shrink-0"><p>↑ {p.hora_salida}</p><p>↓ {p.hora_regreso}</p></div>
                   </div>
                 </div>
               </div>
@@ -268,7 +268,7 @@ export default function RutaDetailPage() {
 
         {asignaciones.length > 0 && (
           <div>
-            <h2 className="font-display text-xl mb-3">Pr\u00f3ximas salidas</h2>
+            <h2 className="font-display text-xl mb-3">Próximas salidas</h2>
             <div className="space-y-3">
               {asignaciones.map((a) => {
                 const libre = a.cupos_disponibles - a.cupos_reservados;
@@ -277,7 +277,7 @@ export default function RutaDetailPage() {
                     <CardBody className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="font-medium">
-                          {new Date(a.fecha + "T12:00:00").toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} \u00b7 {a.hora_salida}
+                          {new Date(a.fecha + "T12:00:00").toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} · {a.hora_salida}
                         </p>
                         <Badge variant={a.estado === "en_curso" ? "success" : a.estado === "completada" ? "default" : "info"}>{a.estado}</Badge>
                       </div>

@@ -56,7 +56,7 @@ export default function ChoferHoyPage() {
         cuerpo: avisoTexto.trim(),
         leido: false,
       });
-      toast({ title: "Aviso enviado", description: "Los pasajeros lo ver\u00e1n al iniciar sesi\u00f3n.", variant: "success" });
+      toast({ title: "Aviso enviado", description: "Los pasajeros lo verán al iniciar sesión.", variant: "success" });
       setAvisoTexto(""); setAvisoOpen(false);
     } catch { toast({ title: "Error al enviar aviso", variant: "error" }); }
     finally { setAvisoLoading(false); }
@@ -72,15 +72,15 @@ export default function ChoferHoyPage() {
 
   const iniciarRuta = () => {
     setGpsError(null);
-    if (!navigator.geolocation) { setGpsError("Este dispositivo no soporta geolocalizaci\u00f3n."); return; }
+    if (!navigator.geolocation) { setGpsError("Este dispositivo no soporta geolocalización."); return; }
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => { const c: GeoCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, velocidad: pos.coords.speed, precision: pos.coords.accuracy }; setCoords(c); coordsRef.current = c; },
-      (err) => { const msgs: Record<number,string> = {1:"Permiso de ubicaci\u00f3n denegado.",2:"No se pudo determinar la ubicaci\u00f3n.",3:"Tiempo de espera agotado."}; setGpsError(msgs[err.code]??"Error de geolocalizaci\u00f3n."); setTracking(false); },
+      (err) => { const msgs: Record<number,string> = {1:"Permiso de ubicación denegado.",2:"No se pudo determinar la ubicación.",3:"Tiempo de espera agotado."}; setGpsError(msgs[err.code]??"Error de geolocalización."); setTracking(false); },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
     intervalRef.current = setInterval(() => { if (coordsRef.current) enviarUbicacion(coordsRef.current); }, 15000);
     setTracking(true);
-    toast({ title: "GPS activo", description: "Enviando ubicaci\u00f3n cada 15 s", variant: "success" });
+    toast({ title: "GPS activo", description: "Enviando ubicación cada 15 s", variant: "success" });
   };
 
   const finalizarRuta = () => {
@@ -99,8 +99,8 @@ export default function ChoferHoyPage() {
     <AppShell role="chofer">
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 text-center space-y-4">
         <Bus className="w-12 h-12 text-muted mx-auto" />
-        <h1 className="font-display text-2xl">Sin asignaci\u00f3n para hoy</h1>
-        <p className="text-muted text-sm">Consulta con administraci\u00f3n si esto es un error.</p>
+        <h1 className="font-display text-2xl">Sin asignación para hoy</h1>
+        <p className="text-muted text-sm">Consulta con administración si esto es un error.</p>
       </div>
     </AppShell>
   );
@@ -134,23 +134,23 @@ export default function ChoferHoyPage() {
                   <>
                     <div className="flex items-center gap-2 bg-state-ok/10 text-state-ok px-3 py-2 rounded-lg text-sm">
                       <div className="w-2 h-2 rounded-full bg-state-ok animate-pulse shrink-0" />
-                      <span>GPS activo \u2014 transmitiendo en tiempo real</span>
+                      <span>GPS activo — transmitiendo en tiempo real</span>
                     </div>
                     {coords && (
                       <div className="grid grid-cols-2 gap-2 text-xs bg-surface-2 rounded-lg px-3 py-2">
                         <div><p className="text-muted">Latitud</p><p className="font-mono font-medium">{coords.lat.toFixed(6)}</p></div>
                         <div><p className="text-muted">Longitud</p><p className="font-mono font-medium">{coords.lng.toFixed(6)}</p></div>
                         {coords.velocidad != null && <div><p className="text-muted">Velocidad</p><p className="font-mono font-medium">{(coords.velocidad * 3.6).toFixed(1)} km/h</p></div>}
-                        {coords.precision != null && <div><p className="text-muted">Precisi\u00f3n</p><p className="font-mono font-medium">\u00b1{coords.precision.toFixed(0)} m</p></div>}
+                        {coords.precision != null && <div><p className="text-muted">Precisión</p><p className="font-mono font-medium">±{coords.precision.toFixed(0)} m</p></div>}
                       </div>
                     )}
                     <Button variant="outline" className="w-full" onClick={finalizarRuta}><CheckCircle2 className="w-4 h-4" /> Finalizar ruta</Button>
                   </>
                 ) : (
                   <>
-                    <Button className="w-full" size="lg" onClick={iniciarRuta}><Navigation className="w-4 h-4" /> Iniciar ruta \u00b7 Activar GPS</Button>
+                    <Button className="w-full" size="lg" onClick={iniciarRuta}><Navigation className="w-4 h-4" /> Iniciar ruta · Activar GPS</Button>
                     {gpsError && <div className="flex items-start gap-2 text-sm text-state-error bg-state-error/10 px-3 py-2 rounded-lg"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{gpsError}</span></div>}
-                    <p className="text-xs text-muted text-center">Se requieren permisos de ubicaci\u00f3n en el navegador.</p>
+                    <p className="text-xs text-muted text-center">Se requieren permisos de ubicación en el navegador.</p>
                   </>
                 )}
               </div>
@@ -173,9 +173,9 @@ export default function ChoferHoyPage() {
                 <h3 className="font-display text-lg">Aviso a pasajeros</h3>
                 <button onClick={() => setAvisoOpen(false)} className="text-muted hover:text-foreground"><X className="w-5 h-5" /></button>
               </div>
-              <p className="text-sm text-muted">El mensaje aparecer\u00e1 en el inicio de todos los pasajeros de esta ruta.</p>
+              <p className="text-sm text-muted">El mensaje aparecerá en el inicio de todos los pasajeros de esta ruta.</p>
               <textarea className="w-full h-28 px-3 py-2 rounded-lg border border-border bg-surface-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-                placeholder="Ej: El bus llegar\u00e1 con 10 minutos de retraso\u2026"
+                placeholder="Ej: El bus llegará con 10 minutos de retraso…"
                 value={avisoTexto} onChange={(e) => setAvisoTexto(e.target.value)} />
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setAvisoOpen(false)}>Cancelar</Button>
@@ -203,7 +203,7 @@ export default function ChoferHoyPage() {
                       <p className="font-medium text-sm">{p.nombre}</p>
                       {p.tipo !== "intermedia" && <Badge variant="default" className="text-xs mt-0.5">{p.tipo}</Badge>}
                     </div>
-                    <p className="text-xs text-muted">\u2191 {p.hora_salida}</p>
+                    <p className="text-xs text-muted">↑ {p.hora_salida}</p>
                   </div>
                 </div>
               </div>

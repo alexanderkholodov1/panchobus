@@ -43,7 +43,7 @@ export default function InicioPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const hora = new Date().getHours();
-  const saludo = hora < 12 ? "\u00a1Buenos d\u00edas" : hora < 18 ? "\u00a1Buenas tardes" : "\u00a1Buenas noches";
+  const saludo = hora < 12 ? "¡Buenos días" : hora < 18 ? "¡Buenas tardes" : "¡Buenas noches";
   const nombre = user?.nombre.split(" ")[0] ?? "estudiante";
 
   const quickLinks = [
@@ -85,7 +85,7 @@ export default function InicioPage() {
                         ? <><Hourglass className="w-3 h-3" /> En espera #{proximaReserva.reserva.posicion_waitlist}</>
                         : <><CheckCircle2 className="w-3 h-3" /> Confirmada</>}
                     </Badge>
-                    <span className="text-xs text-muted">Pr\u00f3xima reserva</span>
+                    <span className="text-xs text-muted">Próxima reserva</span>
                   </div>
                   <p className="font-display text-xl leading-tight mb-1">Ruta {proximaReserva.asignacion?.id_ruta}</p>
                   <div className="flex flex-wrap gap-3 text-sm text-muted">
@@ -104,7 +104,7 @@ export default function InicioPage() {
           <Card className="border border-dashed">
             <CardBody className="text-center py-6">
               <Bus className="w-8 h-8 text-muted mx-auto mb-2" />
-              <p className="font-medium mb-1">Sin reservas pr\u00f3ximas</p>
+              <p className="font-medium mb-1">Sin reservas próximas</p>
               <p className="text-sm text-muted mb-3">Reserva tu cupo para viajar sin esperas.</p>
               <Link href="/app/reservar"><Button>Reservar ahora <ArrowRight className="w-4 h-4" /></Button></Link>
             </CardBody>
@@ -112,7 +112,7 @@ export default function InicioPage() {
         )}
 
         <div>
-          <h2 className="font-display text-lg mb-3">Accesos r\u00e1pidos</h2>
+          <h2 className="font-display text-lg mb-3">Accesos rápidos</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {quickLinks.map((ql) => {
               const Icon = ql.icon;
@@ -143,7 +143,7 @@ export default function InicioPage() {
                       </div>
                       <p className="font-display text-xl">{miRuta.nombre}</p>
                       <p className="text-sm text-muted flex items-center gap-1 mt-1">
-                        <MapPin className="w-3.5 h-3.5" />{miRuta.numero_paradas} paradas \u00b7 {miRuta.dias_operacion.join(", ")}
+                        <MapPin className="w-3.5 h-3.5" />{miRuta.numero_paradas} paradas · {miRuta.dias_operacion.join(", ")}
                       </p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
