@@ -28,8 +28,8 @@ export default function AdminChoferesPage() {
     <AppShell role="admin">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
-          <p className="text-sm text-muted mb-1">Personal</p>
-          <h1 className="font-display text-3xl">Choferes</h1>
+          <p className="text-sm text-muted mb-1">Gestión</p>
+          <h1 className="font-display text-3xl">Personal de Ruta</h1>
         </div>
 
         <div className="space-y-3">

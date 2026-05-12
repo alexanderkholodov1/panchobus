@@ -252,4 +252,15 @@ export const db = {
       )
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   },
-  async createMensaje(m: Omit<Mensaje, "id_mensa
+  async createMensaje(m: Omit<Mensaje, "id_mensaje" | "created_at">): Promise<Mensaje> {
+    const s = getStore();
+    const nuevo: Mensaje = {
+      ...m,
+      id_mensaje: `msg-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    s.mensajes.push(nuevo);
+    persist(s);
+    return nuevo;
+  }
+};

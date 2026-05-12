@@ -173,15 +173,15 @@ export default function AdminRutasPage() {
                     {r.codigo}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">{r.nombre}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium truncate max-w-[160px] sm:max-w-none">{r.nombre}</p>
                       <Badge variant={r.estado === "activa" ? "success" : "warning"}>{r.estado}</Badge>
                     </div>
-                    <p className="text-xs text-muted flex items-center gap-2 mt-0.5">
-                      <MapPin className="w-3 h-3" />{r.numero_paradas} paradas ·
-                      <Bus className="w-3 h-3" />{r.numero_asientos} asientos ·
-                      {r.dias_operacion.map((d) => DIAS_LABELS[d]).join(" ")}
-                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted mt-0.5">
+                      <span className="flex items-center gap-1 whitespace-nowrap"><MapPin className="w-3 h-3" />{r.numero_paradas} paradas</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap"><Bus className="w-3 h-3" />{r.numero_asientos} asientos</span>
+                      <span className="whitespace-nowrap">{r.dias_operacion.map((d) => DIAS_LABELS[d]).join(" ")}</span>
+                    </div>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline" onClick={() => openEdit(r)}>

@@ -75,7 +75,7 @@ export default function AdminMensajesPage() {
                   <Select id="dest" value={form.destinatario_id} onChange={set("destinatario_id")}>
                     <option value="">Seleccionar…</option>
                     {usuarios.filter((u)=>u.rol==="chofer").map((u) => (
-                      <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} (chofer)</option>
+                      <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} (personal de ruta)</option>
                     ))}
                   </Select>
                 </div>

@@ -228,4 +228,25 @@ Para resetear a estado limpio: borrar localStorage en el navegador.
 6. **No inventar datos** que no estén en el seed (rutas, choferes, paradas, coordenadas).
 7. **No proponer servicios pagos** sin permiso del usuario.
 8. **Pregunta antes de salirte del plan**: si encontrás algo mejor, mencionarlo con justificación antes de implementar.
-9. **Idioma**: UI y comentar
+9. **Idioma**: UI y comentarios visibles en español. Variables y código en inglés. Commits en inglés.
+10. **Quality bar**: cero pantallas en blanco, cero links rotos, cero "TODO" visibles en UI.
+
+---
+
+## Contactos reales
+
+- `panchobus@usfq.edu.ec` — correo oficial del servicio
+- Jairo Carvajal · `jcarvajal@usfq.edu.ec` · Coordinador de movilidad · Oficina PF104, Campus Cumbayá
+- Sistema actual de referencia: app **Finder** (Opinno EC) — no integrar
+- Sistema previo: **OnTrack** — no integrar
+
+---
+
+## Memoria persistente del usuario (Claude Cowork)
+
+Archivos de memoria en:
+`C:\Users\AlexAmaze\AppData\Roaming\Claude\local-agent-mode-sessions\...\memory\`
+- `project_panchobus.md` — contexto completo del servicio real
+- `user_alexander.md` — perfil de Alexander y preferencias de colaboración
+
+Leerlos al iniciar sesión nueva en Cowork.

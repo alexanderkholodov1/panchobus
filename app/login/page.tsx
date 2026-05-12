@@ -113,4 +113,10 @@ function LoginContent() {
   );
 }
 
-e
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
+}

@@ -95,4 +95,77 @@ Sin variables de entorno de Supabase, la app corre en modo demo completo:
 ## Variables de entorno
 
 ```env
-NEXT_PUBLIC_SUPABASE_
+NEXT_PUBLIC_SUPABASE_URL=        # Opcional — activa modo Supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Opcional
+```
+
+Sin estas variables, todo funciona en demo mode.
+
+## Desarrollo local
+
+```bash
+cd panchobus
+npm install
+npm run dev     # http://localhost:3000
+npm run build   # Verifica compilación TypeScript
+npm run lint
+```
+
+## Design system
+
+**Colores** (definidos en `tailwind.config.ts` + `globals.css`):
+- `primary` → Rojo USFQ `#E11B22`
+- `surface` / `surface-2` / `background` → capas de fondo (claro/oscuro automático)
+- `state-ok` `#2A7D4F` · `state-warn` `#E89F1F` · `state-error` `#C13030`
+- `usfq-red-tint` `#F9E8E8` → fondo suave para acentos rojos
+
+**Tipografía**:
+- `font-display` → Libre Baskerville (titulares, números grandes)
+- `font-sans` → Inter (cuerpo)
+
+Modo oscuro: strategy `class` via next-themes. Siempre soportar ambos modos.
+
+---
+
+## Estado actual (mayo 2026)
+
+### ✅ Implementado y funcional
+
+- Landing page pública
+- Auth demo (login + registro + logout + refresh)
+- AppShell responsive: sidebar desktop 256px + dropdown mobile
+- Modo claro / oscuro / sistema
+- **Admin** (9 páginas): dashboard KPIs, rutas CRUD, buses, conductores, calendario de asignaciones, reservas con búsqueda y export CSV, gestión de usuarios con creación de conductores/admins, mensajes, insights IA
+- **Estudiante** (8 páginas): inicio, explorador de rutas, detalle de ruta, wizard de reserva con lista de espera automática, mis reservas, QR de abordaje, horarios semanales, perfil
+- **Personal de ruta** (4 páginas): ruta de hoy con GPS mock, pasajeros, escáner QR (manual), mensajes
+- Seed de datos realistas: 8 rutas de Quito/Cumbayá, 47 paradas con coordenadas reales, asignaciones dinámicas basadas en fecha actual
+
+### 🔧 Pendiente — próximas IAs deben abordar esto
+
+**Alta prioridad (producción):**
+1. **Supabase**: crear schema SQL con las tablas de `lib/types.ts`, configurar RLS por rol, conectar auth real. La capa `lib/db/index.ts` está preparada para esta migración — solo añadir el branch Supabase al lado del demo.
+2. **GPS real**: `chofer/hoy/page.tsx` tiene un mock. Reemplazar con `navigator.geolocation.watchPosition` → `POST /api/gps` → guardar en tabla `bus_locations`.
+3. **Cámara QR**: `chofer/escanear/page.tsx` tiene placeholder de cámara. Integrar `jsQR` o `@zxing/browser`. Requiere HTTPS y permisos de cámara en producción.
+4. **Email transaccional**: confirmación de reserva, cambios de estado (Resend o SendGrid vía Supabase Edge Functions).
+
+**Media prioridad (UX):**
+5. **Mapa interactivo** en `app/rutas/[id]`: mostrar paradas en mapa (Mapbox GL JS o Leaflet). Las coordenadas ya están en `lib/data/seed.ts`.
+6. **Tracking en tiempo real**: página para estudiantes que muestra la ubicación del bus de su ruta.
+7. **PWA**: añadir `manifest.json` y service worker para instalación en móvil.
+8. **Push notifications**: Supabase Realtime para alertas de cambio de estado de reserva.
+
+**Deuda técnica:**
+9. Eliminar carpeta `functions/` (Firebase/Genkit legacy), `firebase.json`, `apphosting.yaml`, `database.rules.json` — no se usan.
+10. `middleware.ts`: actualmente pass-through. Con Supabase, verificar cookie `sb-access-token` y redirigir a `/login`.
+11. Añadir `createRuta` / `deleteBus` / etc. al `lib/db/index.ts` según crezca la funcionalidad admin.
+
+---
+
+## Historial crítico — leer antes de tocar el repo
+
+- **NO hacer `git revert` sin entender exactamente qué hace**: en mayo 2026 un revert eliminó toda la carpeta `app/` y hubo que restaurar 21 páginas desde `origin/main`.
+- **NO eliminar carpetas enteras** con bash en el workspace montado.
+- **El sandbox Linux de Cowork no puede crear archivos en la carpeta Windows montada** — usar siempre el `Write` tool de Cowork, nunca `touch`/`echo >`/`cp` para crear archivos nuevos en el proyecto.
+- **`npm install` debe correrse desde Windows** (terminal nativa), no desde el sandbox Linux.
+- **El store en memoria se reinicia en cada recarga de servidor**: es por diseño del demo mode. Los datos solo persisten via `localStorage` en el cliente.
+- **Los usuarios registrados se persisten en `db.addUsuario()`** (fix aplicado mayo 2026). Si ves "Desconocido" en admin/reservas, limpiar localStorage del navegador para resetear el store.

@@ -43,7 +43,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/rutas", label: "Rutas", icon: RouteIcon },
   { href: "/admin/buses", label: "Buses", icon: Bus },
-  { href: "/admin/choferes", label: "Choferes", icon: Users },
+  { href: "/admin/choferes", label: "Personal de Ruta", icon: Users },
   { href: "/admin/asignaciones", label: "Asignaciones", icon: CalendarCheck },
   { href: "/admin/reservas", label: "Reservas", icon: ListChecks },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
@@ -209,4 +209,7 @@ export function AppShell({
         </div>
       )}
 
-    
+      <main className="flex-1 min-w-0 pt-14 lg:pt-0">{children}</main>
+    </div>
+  );
+}

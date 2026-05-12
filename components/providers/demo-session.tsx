@@ -85,4 +85,7 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
 }
 
 export function useSession() {
-  const ctx = useContext(DemoSessio
+  const ctx = useContext(DemoSessionContext);
+  if (!ctx) throw new Error("useSession debe usarse dentro de DemoSessionProvider");
+  return ctx;
+}

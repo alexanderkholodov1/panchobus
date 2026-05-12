@@ -223,7 +223,7 @@ function ReservarContent() {
             </div>
             <div>
               <h2 className="font-display text-3xl mb-2">¡Reserva lista!</h2>
-              <p className="text-muted text-sm">Tu cupo está asegurado. Muestra el QR al chofer el día del viaje.</p>
+              <p className="text-muted text-sm">Tu cupo está asegurado. Muestra el QR al personal de la ruta el día del viaje.</p>
             </div>
             <div className="bg-surface-2 rounded-xl px-4 py-3 text-xs text-muted font-mono break-all">{qrToken}</div>
             <div className="flex flex-col gap-2">

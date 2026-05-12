@@ -64,9 +64,9 @@ export default function AdminBusesPage() {
                     </div>
                     <div className="text-right text-xs text-muted">
                       {b.id_chofer_asignado ? (
-                        <span className="text-state-ok">Con chofer asignado</span>
+                        <span className="text-state-ok">Con personal asignado</span>
                       ) : (
-                        <span>Sin chofer</span>
+                        <span>Sin personal asignado</span>
                       )}
                     </div>
                   </div>
