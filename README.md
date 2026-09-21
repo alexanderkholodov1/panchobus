@@ -1,171 +1,113 @@
-# Pancho Bus · USFQ
+# Pancho Bus
 
-Plataforma web de gestión de transporte universitario para la Universidad San Francisco de Quito (USFQ).
-Centraliza reservas de cupos, abordaje por QR, seguimiento operativo y comunicación entre estudiantes, personal de ruta y administración.
+**A dedicated platform for the free university shuttle at Universidad San Francisco de Quito.** Seat booking, QR boarding, live route tracking, operational messaging and demand analytics, in one system shared by the groups that keep the service running: students, administration, route staff and campus security.
 
-## Stack
+| | |
+|---|---|
+| Live demo | **https://panchobus-backend--panchobus-1.us-east4.hosted.app/** |
+| Demo accounts | One click from the login screen: student, administrator, route staff |
+| Status | Working prototype, running on real route and stop data. Not presented to the university; not an official USFQ product |
+| Origin | Built for Web Development 2 at USFQ, from a problem the authors use every day |
 
-| Capa | Tecnología |
-|------|-----------|
-| Framework | Next.js 14 (App Router, `"use client"` en páginas) |
-| UI | Tailwind CSS + design system USFQ personalizado |
-| Tipado | TypeScript |
-| Auth / DB | **Demo mode**: store en memoria + localStorage · **Producción**: Supabase (Postgres + Auth + RLS) |
-| Iconos | lucide-react |
-| Fuentes | Inter (sans) + Libre Baskerville (display) |
+---
 
-## Estructura de directorios
+## Why this exists
+
+The shuttle is free and it works, but the experience around it was held together by paper, queues and word of mouth. Two long user interviews (75 to 90 minutes each) with daily riders confirmed what riding it already suggested:
+
+- **Seats ran out before most people could react.** A student checking at nine in the morning could already find the route full, with no way to see it in advance and no queue to fall back on.
+- **Boarding was verified with stickers handed out in a physical line.** Getting a seat rewarded being early and present, not needing the trip.
+- **Routes and schedules lived in PDFs.** No search, no stop detail, no map, no way to tell which departure still had room.
+- **Nothing could be announced.** A bus running late or changing its route reached passengers only if someone told someone.
+- **Coordination was fragmented.** Administration, drivers, security and students each held a piece of the state, and none of them held the same one.
+
+The last point is the real problem, and the reason this is one platform and not four tools: every group is looking at the same trip from a different side, so they should be looking at the same record of it.
+
+## Principles
+
+These were decided before the first screen and none of them moved.
+
+1. **Access should not depend on physical presence.** Nothing in the product requires standing in a line or reaching an office. A student books, boards and cancels from a phone.
+2. **State must be visible to whoever it affects.** Occupancy, delays, route changes and waitlist position are shown to the person who needs them, while a decision still depends on them.
+3. **One record, four views.** Student, administrator, route staff and security read and write the same trip, each through the surface their job needs.
+4. **Zero cost to operate.** The whole stack runs on free tiers. A university service that costs nothing to run is a service that can actually be adopted.
+5. **Institutional, not decorative.** The product uses the university's official visual identity rather than an invented one, because it has to read as part of the institution to be trusted by it.
+6. **Evaluable without credentials.** Demo mode is the default: anyone, including the decision maker who would have to approve this, can open the live link and use all three roles with no setup.
+
+## What the platform does
+
+21 screens across three role surfaces, all sharing one data layer.
+
+| Surface | Screens | What it covers |
+|---|---|---|
+| **Student** | 8 | Personal dashboard with next trip, route explorer with search, route detail with stops on an interactive map, three-step booking with automatic waitlist, booking history with cancellation, active boarding QR, weekly schedule, profile and theme preferences |
+| **Administration** | 9 | KPI dashboard with the day's departures, route CRUD, buses, route staff, weekly assignment calendar, all bookings with search and CSV export, user management with driver and admin creation, messaging to individuals or whole routes, demand analytics |
+| **Route staff** | 4 | Today's assignment with live GPS reporting and stop sequence, passenger list for the current trip, QR scanner with manual fallback, inbox for messages from administration |
+
+**Demand analytics** is rule-based rather than a model: it flags routes above 85% average occupancy, routes under 40% with active assignments, accumulated waitlist pressure and no-show patterns, and turns each into a concrete operational recommendation (add a bus at peak, merge with a nearby route, send a reminder an hour before departure).
+
+## From research to product decisions
+
+| What the interviews surfaced | What it became |
+|---|---|
+| Seats gone by mid-morning, with no visibility | Advance booking with per-departure occupancy and an automatic waitlist that promotes on cancellation |
+| Stickers handed out in a physical queue | Signed boarding QR on the student's phone, scanned by route staff, with manual code entry when a camera fails |
+| Routes published as PDFs | Route explorer with search, stop-by-stop detail and real coordinates on an interactive map |
+| No way to announce a delay or a change | Administration messaging to a single user or an entire route, plus driver alerts |
+| Four groups, four partial versions of the truth | One data layer, three role surfaces, shared trip state |
+
+## What this is designed to move
+
+The prototype has no production traffic, so it reports no results. These are the metrics it was built to change, and the ones a pilot should measure: share of trips booked in advance instead of claimed in line, no-show rate per route, waitlist conversion after cancellations, boarding time per passenger, share of delays and route changes that reach passengers before departure, and the utilization gap between saturated and underused routes.
+
+## Design
+
+The visual identity is anchored to the university's official brand manual rather than a new one: USFQ red `#E11B22` as primary, institutional black and grey, and the Pancho Bus orange `#F39200` kept from the service's existing logo. Libre Baskerville for display, Inter for body. Every color is a CSS variable, so light and dark are the same design system rather than two stylesheets.
+
+The interface is mobile-first, because the entire student flow happens while walking to a stop: a 256px sidebar on desktop collapses to a dropdown on mobile, and status is carried by badges with a fixed semantic palette (ok, warning, error, info) so a state means the same thing on every screen.
+
+Built with a classmate, who produced the brand identity manual, moodboard, palettes, type system and Figma mockups, and co-presented the pitch. The platform itself, its product design, data model, 21 screens and deployment, was built by Alexander Kholodov.
+
+## Scope: what is real and what is a demo
+
+**Real and working:** all 21 screens; booking with waitlist logic; QR generation and verification by manual code; the interactive map with real coordinates for 8 Quito and Cumbayá routes and 47 stops; GPS reporting from the route staff view to `/api/gps`; messaging; CSV export; rule-based analytics; light and dark themes; PWA manifest; continuous deployment to Firebase App Hosting.
+
+**Demo, by design:** with no Supabase environment variables the app runs entirely on a seeded in-memory store persisted to `localStorage`, including a simulated session. QR scanning uses manual code entry rather than the camera. No email is sent.
+
+**Next, in priority order:** Supabase schema with row-level security per role and real authentication (the data layer in `lib/db/index.ts` is already written as one interface with both branches); camera-based QR scanning; transactional email for booking confirmations and status changes; passenger-facing live bus location; push notifications for status changes.
+
+## Tech
+
+Next.js 14 (App Router), TypeScript, Tailwind CSS with a custom design system, Supabase (Postgres, Auth, RLS) in production with an in-memory store in demo mode, Leaflet with OpenStreetMap tiles, lucide-react, deployed on Firebase App Hosting.
 
 ```
-panchobus/
-├── app/
-│   ├── page.tsx                  # Landing page pública
-│   ├── login/page.tsx            # Login
-│   ├── registro/page.tsx         # Registro de estudiantes
-│   ├── layout.tsx                # Root layout (providers, fuentes, metadata)
-│   ├── globals.css               # Variables CSS del design system
-│   ├── admin/                    # Panel de administración (rol: admin)
-│   │   ├── dashboard/page.tsx    # KPIs + salidas del día + top rutas
-│   │   ├── rutas/page.tsx        # CRUD rutas
-│   │   ├── buses/page.tsx        # Listado de buses y estados
-│   │   ├── choferes/page.tsx     # Listado de personal de ruta
-│   │   ├── asignaciones/page.tsx # Calendario semanal de salidas
-│   │   ├── reservas/page.tsx     # Todas las reservas + búsqueda + CSV export
-│   │   ├── usuarios/page.tsx     # Gestión de usuarios + crear conductores/admins
-│   │   ├── mensajes/page.tsx     # Mensajes a usuarios o rutas completas
-│   │   └── insights/page.tsx     # Análisis algorítmico de demanda
-│   ├── app/                      # Panel de estudiante (rol: estudiante)
-│   │   ├── inicio/page.tsx       # Dashboard personal con próxima reserva
-│   │   ├── rutas/page.tsx        # Explorador de rutas con búsqueda
-│   │   ├── rutas/[id]/page.tsx   # Detalle: paradas, operador, próximas salidas
-│   │   ├── reservar/page.tsx     # Wizard 3 pasos: ruta → fecha → confirmar
-│   │   ├── mis-reservas/page.tsx # Historial + próximas + cancelar
-│   │   ├── mi-qr/page.tsx        # QR de abordaje activo
-│   │   ├── horarios/page.tsx     # Calendario semanal de salidas
-│   │   └── perfil/page.tsx       # Edición de perfil + preferencias de tema
-│   └── chofer/                   # Panel de personal de ruta (rol: chofer)
-│       ├── hoy/page.tsx          # Asignación del día + GPS mock + paradas
-│       ├── pasajeros/page.tsx    # Lista de pasajeros de la asignación actual
-│       ├── escanear/page.tsx     # Escáner QR (placeholder + input manual)
-│       └── mensajes/page.tsx     # Inbox de mensajes de administración
-├── components/
-│   ├── brand/logo.tsx            # Logo SVG
-│   ├── layout/
-│   │   ├── app-shell.tsx         # Shell con sidebar (desktop) + dropdown (mobile)
-│   │   ├── public-header.tsx     # Header de landing
-│   │   └── public-footer.tsx     # Footer de landing
-│   ├── providers/
-│   │   ├── demo-session.tsx      # Contexto de sesión demo (base para Supabase)
-│   │   └── theme-provider.tsx    # next-themes
-│   └── ui/
-│       ├── badge.tsx             # Variantes: success/warning/error/info/default
-│       ├── button.tsx            # Con loading state y variantes
-│       ├── card.tsx              # Card + CardBody
-│       ├── input.tsx             # Input, Label, Select
-│       ├── skeleton.tsx          # Skeleton loader
-│       ├── theme-toggle.tsx      # Toggle claro/oscuro/sistema
-│       └── toaster.tsx           # Toast notifications
-├── lib/
-│   ├── types.ts                  # Todos los tipos TypeScript del dominio
-│   ├── utils.ts                  # cn(), initials(), formatDate()
-│   ├── data/seed.ts              # Datos demo: 8 rutas, 47 paradas, 9 usuarios
-│   ├── db/index.ts               # API de datos unificada (demo / Supabase)
-│   └── supabase/                 # Clientes browser y server de Supabase
-└── middleware.ts                 # Scaffold de protección de rutas
+app/
+  page.tsx            Public landing
+  login, registro     Authentication
+  app/                Student surface (8 screens)
+  admin/              Administration surface (9 screens)
+  chofer/             Route staff surface (4 screens)
+  api/gps/            Location reporting endpoint
+components/           Layout shell, providers, UI primitives
+lib/
+  types.ts            Domain model, single source of truth
+  db/index.ts         Data access layer: one interface, demo and Supabase branches
+  data/seed.ts        8 routes, 47 stops with real coordinates, 9 users
 ```
 
-## Roles y acceso
-
-| Rol | Ruta base | Cómo se crea |
-|-----|-----------|-------------|
-| `estudiante` | `/app/` | Se registra solo. Auto-aprobado al registrarse. |
-| `admin` | `/admin/` | Creado manualmente por un admin desde `/admin/usuarios`. |
-| `chofer` | `/chofer/` | Personal de ruta (conductores + acompañantes). Creado por admin. |
-
-**Importante**: El rol `"chofer"` en código representa **todo el personal de ruta** — conductores y acompañantes que verifican QRs. En la UI se muestra como "Personal de Ruta". No renombrar el string `"chofer"` en código sin actualizar AppShell, redirects y seeds.
-
-## Demo mode
-
-Sin variables de entorno de Supabase, la app corre en modo demo completo:
-- Store en memoria inicializado desde `lib/data/seed.ts`
-- Reservas, mensajes y usuarios nuevos persisten en `localStorage` → clave `panchobus-store-overrides`
-- Sesión persiste en `localStorage` → clave `panchobus-session-userid`
-- Cuentas demo predefinidas: `demo-student` / `demo-admin` / `demo-driver` (accesibles desde login)
-
-## Variables de entorno
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=        # Opcional — activa modo Supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Opcional
-```
-
-Sin estas variables, todo funciona en demo mode.
-
-## Desarrollo local
+**Run it locally.**
 
 ```bash
-cd panchobus
 npm install
-npm run dev     # http://localhost:3000
-npm run build   # Verifica compilación TypeScript
-npm run lint
+npm run dev        # http://localhost:3000
+npm run build
+npm run typecheck
 ```
 
-## Design system
+With no environment variables the app starts in demo mode. To run it against Supabase, copy `.env.example` to `.env.local` and fill in the project URL and anon key.
 
-**Colores** (definidos en `tailwind.config.ts` + `globals.css`):
-- `primary` → Rojo USFQ `#E11B22`
-- `surface` / `surface-2` / `background` → capas de fondo (claro/oscuro automático)
-- `state-ok` `#2A7D4F` · `state-warn` `#E89F1F` · `state-error` `#C13030`
-- `usfq-red-tint` `#F9E8E8` → fondo suave para acentos rojos
-
-**Tipografía**:
-- `font-display` → Libre Baskerville (titulares, números grandes)
-- `font-sans` → Inter (cuerpo)
-
-Modo oscuro: strategy `class` via next-themes. Siempre soportar ambos modos.
+Contributor notes, the full domain model and the operating rules for this repository are in [`AI_CONTEXT.md`](AI_CONTEXT.md).
 
 ---
 
-## Estado actual (mayo 2026)
-
-### ✅ Implementado y funcional
-
-- Landing page pública
-- Auth demo (login + registro + logout + refresh)
-- AppShell responsive: sidebar desktop 256px + dropdown mobile
-- Modo claro / oscuro / sistema
-- **Admin** (9 páginas): dashboard KPIs, rutas CRUD, buses, conductores, calendario de asignaciones, reservas con búsqueda y export CSV, gestión de usuarios con creación de conductores/admins, mensajes, insights IA
-- **Estudiante** (8 páginas): inicio, explorador de rutas, detalle de ruta, wizard de reserva con lista de espera automática, mis reservas, QR de abordaje, horarios semanales, perfil
-- **Personal de ruta** (4 páginas): ruta de hoy con GPS mock, pasajeros, escáner QR (manual), mensajes
-- Seed de datos realistas: 8 rutas de Quito/Cumbayá, 47 paradas con coordenadas reales, asignaciones dinámicas basadas en fecha actual
-
-### 🔧 Pendiente — próximas IAs deben abordar esto
-
-**Alta prioridad (producción):**
-1. **Supabase**: crear schema SQL con las tablas de `lib/types.ts`, configurar RLS por rol, conectar auth real. La capa `lib/db/index.ts` está preparada para esta migración — solo añadir el branch Supabase al lado del demo.
-2. **GPS real**: `chofer/hoy/page.tsx` tiene un mock. Reemplazar con `navigator.geolocation.watchPosition` → `POST /api/gps` → guardar en tabla `bus_locations`.
-3. **Cámara QR**: `chofer/escanear/page.tsx` tiene placeholder de cámara. Integrar `jsQR` o `@zxing/browser`. Requiere HTTPS y permisos de cámara en producción.
-4. **Email transaccional**: confirmación de reserva, cambios de estado (Resend o SendGrid vía Supabase Edge Functions).
-
-**Media prioridad (UX):**
-5. **Mapa interactivo** en `app/rutas/[id]`: mostrar paradas en mapa (Mapbox GL JS o Leaflet). Las coordenadas ya están en `lib/data/seed.ts`.
-6. **Tracking en tiempo real**: página para estudiantes que muestra la ubicación del bus de su ruta.
-7. **PWA**: añadir `manifest.json` y service worker para instalación en móvil.
-8. **Push notifications**: Supabase Realtime para alertas de cambio de estado de reserva.
-
-**Deuda técnica:**
-9. Eliminar carpeta `functions/` (Firebase/Genkit legacy), `firebase.json`, `apphosting.yaml`, `database.rules.json` — no se usan.
-10. `middleware.ts`: actualmente pass-through. Con Supabase, verificar cookie `sb-access-token` y redirigir a `/login`.
-11. Añadir `createRuta` / `deleteBus` / etc. al `lib/db/index.ts` según crezca la funcionalidad admin.
-
----
-
-## Historial crítico — leer antes de tocar el repo
-
-- **NO hacer `git revert` sin entender exactamente qué hace**: en mayo 2026 un revert eliminó toda la carpeta `app/` y hubo que restaurar 21 páginas desde `origin/main`.
-- **NO eliminar carpetas enteras** con bash en el workspace montado.
-- **El sandbox Linux de Cowork no puede crear archivos en la carpeta Windows montada** — usar siempre el `Write` tool de Cowork, nunca `touch`/`echo >`/`cp` para crear archivos nuevos en el proyecto.
-- **`npm install` debe correrse desde Windows** (terminal nativa), no desde el sandbox Linux.
-- **El store en memoria se reinicia en cada recarga de servidor**: es por diseño del demo mode. Los datos solo persisten via `localStorage` en el cliente.
-- **Los usuarios registrados se persisten en `db.addUsuario()`** (fix aplicado mayo 2026). Si ves "Desconocido" en admin/reservas, limpiar localStorage del navegador para resetear el store.
+Independent student project. Not affiliated with, endorsed by, or operated by Universidad San Francisco de Quito.
