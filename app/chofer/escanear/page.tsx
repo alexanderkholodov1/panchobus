@@ -3,64 +3,98 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { db } from "@/lib/db";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { db, type ScanOutcome } from "@/lib/db";
 import { useSession } from "@/components/providers/demo-session";
+import { useI18n } from "@/lib/i18n";
+import { pickDriverTrip } from "@/lib/trips";
+import { localISODate } from "@/lib/utils";
 import { toast } from "@/components/ui/toaster";
-import type { Reserva } from "@/lib/types";
-import { Camera, CameraOff, QrCode, CheckCircle2, XCircle, Search, AlertCircle } from "lucide-react";
+import type { Asignacion, Reserva, Ruta, Usuario } from "@/lib/types";
+import { Camera, CameraOff, CheckCircle2, XCircle, Search } from "lucide-react";
 
-type ScanResult = { ok: boolean; reserva?: Reserva; message: string };
+type JsQR = (data: Uint8ClampedArray, width: number, height: number, opts?: { inversionAttempts: string }) => { data: string } | null;
 
-// Load jsQR library from CDN (free, no API key required)
-function loadJsQR(): Promise<(data: Uint8ClampedArray, width: number, height: number) => { data: string } | null> {
+// jsQR is loaded on demand from a CDN (free, no API key).
+function loadJsQR(): Promise<JsQR> {
   return new Promise((resolve, reject) => {
-    if ((window as any).jsQR) { resolve((window as any).jsQR); return; }
+    const w = window as unknown as { jsQR?: JsQR };
+    if (w.jsQR) { resolve(w.jsQR); return; }
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
-    script.onload = () => resolve((window as any).jsQR);
-    script.onerror = () => reject(new Error("No se pudo cargar jsQR"));
+    script.onload = () => (w.jsQR ? resolve(w.jsQR) : reject(new Error("jsQR")));
+    script.onerror = () => reject(new Error("jsQR"));
     document.head.appendChild(script);
   });
 }
 
 export default function ChoferEscanearPage() {
   const { user } = useSession();
+  const { t, fmtDate, fmtTime } = useI18n();
+  const S = t.driver.scan;
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const [result, setResult] = useState<ScanOutcome | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [cameraSupported] = useState(() => typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia);
+  const [cameraSupported, setCameraSupported] = useState(false);
+  const [trip, setTrip] = useState<Asignacion | null>(null);
+  const [samples, setSamples] = useState<Reserva[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [rutas, setRutas] = useState<Ruta[]>([]);
+  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
-  const jsQRRef = useRef<((d: Uint8ClampedArray, w: number, h: number) => { data: string } | null) | null>(null);
+  const jsQRRef = useRef<JsQR | null>(null);
+
+  useEffect(() => { setCameraSupported(!!navigator.mediaDevices?.getUserMedia); }, []);
+
+  const loadContext = useCallback(async () => {
+    if (!user) return;
+    const [mine, u, r, all] = await Promise.all([db.getAsignacionesByChofer(user.id_usuario), db.getUsuarios(), db.getRutas(), db.getAsignaciones()]);
+    const { trip: current } = pickDriverTrip(mine, localISODate());
+    setTrip(current);
+    setUsuarios(u);
+    setRutas(r);
+    setAsignaciones(all);
+    if (current) {
+      const res = await db.getReservasByAsignacion(current.id_asignacion);
+      setSamples(res.filter((x) => x.estado === "confirmada").slice(0, 4));
+    }
+  }, [user]);
+
+  useEffect(() => { loadContext(); }, [loadContext]);
+
+  const stopCamera = useCallback(() => {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((tr) => tr.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  }, []);
 
   const processScan = useCallback(async (qrToken: string) => {
     if (!user) return;
     setLoading(true);
     setResult(null);
-
-    const r = await db.scanQR(qrToken, user.id_usuario);
-    if (!r) {
-      setResult({ ok: false, message: "QR no encontrado. Verifica que el código es correcto." });
-      toast({ title: "QR inválido", variant: "error" });
-    } else if (r.estado === "usada" && r.qr_escaneado_por !== user.id_usuario) {
-      setResult({ ok: false, reserva: r, message: "Este QR ya fue escaneado anteriormente." });
-      toast({ title: "QR ya usado", variant: "error" });
-    } else {
-      setResult({ ok: true, reserva: r, message: "¡Abordaje confirmado!" });
-      toast({ title: "Abordaje confirmado", variant: "success" });
+    const outcome = await db.scanQR(qrToken, user.id_usuario);
+    setResult(outcome);
+    if (outcome.status === "ok") {
+      toast({ title: S.ok, variant: "success" });
       setToken("");
+    } else {
+      toast({ title: outcome.status === "not_found" ? S.notFound : outcome.status === "already_used" ? S.used : outcome.status === "waitlisted" ? S.waitlisted : S.cancelled, variant: "error" });
     }
     setLoading(false);
     stopCamera();
-  }, [user]);
+    loadContext();
+  }, [user, S, stopCamera, loadContext]);
 
   const scanFrame = useCallback(() => {
     const video = videoRef.current;
@@ -70,45 +104,29 @@ export default function ChoferEscanearPage() {
       rafRef.current = requestAnimationFrame(scanFrame);
       return;
     }
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) { rafRef.current = requestAnimationFrame(scanFrame); return; }
-
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = (jsQR as any)(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "dontInvert",
-    });
-
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
     if (code?.data) {
       processScan(code.data);
-      return; // Don't continue rAF — camera will be stopped after processScan
+      return;
     }
     rafRef.current = requestAnimationFrame(scanFrame);
   }, [processScan]);
 
-  const stopCamera = useCallback(() => {
-    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  }, []);
-
   const startCamera = async () => {
     setCameraError(null);
     setResult(null);
-
     try {
       jsQRRef.current = await loadJsQR();
     } catch {
-      setCameraError("No se pudo cargar el escáner de QR.");
+      setCameraError(S.loadError);
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -120,16 +138,12 @@ export default function ChoferEscanearPage() {
       }
       setCameraActive(true);
       rafRef.current = requestAnimationFrame(scanFrame);
-    } catch (err: any) {
-      const msg =
-        err.name === "NotAllowedError" ? "Permiso de cámara denegado." :
-        err.name === "NotFoundError" ? "No se encontró cámara en este dispositivo." :
-        "No se pudo acceder a la cámara.";
-      setCameraError(msg);
+    } catch (err: unknown) {
+      const name = err instanceof DOMException ? err.name : "";
+      setCameraError(name === "NotAllowedError" ? S.camDenied : name === "NotFoundError" ? S.camNotFound : S.camError);
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   const scanManual = async () => {
@@ -137,121 +151,117 @@ export default function ChoferEscanearPage() {
     await processScan(token.trim());
   };
 
+  const reserva = result && result.status !== "not_found" ? result.reserva : null;
+  const resAsg = reserva ? asignaciones.find((a) => a.id_asignacion === reserva.id_asignacion) : undefined;
+  const resRuta = resAsg ? rutas.find((r) => r.id_ruta === resAsg.id_ruta) : undefined;
+  const message = result
+    ? result.status === "ok" ? S.ok
+      : result.status === "already_used" ? S.used
+      : result.status === "waitlisted" ? S.waitlisted
+      : result.status === "cancelled" ? S.cancelled
+      : S.notFound
+    : "";
+  const ok = result?.status === "ok";
+
   return (
     <AppShell role="chofer">
       <div className="max-w-sm mx-auto px-4 sm:px-6 py-8 space-y-6 text-center">
         <div>
-          <p className="text-sm text-muted mb-1">Abordaje</p>
-          <h1 className="font-display text-3xl">Escanear QR</h1>
+          <p className="text-sm text-muted mb-1">{S.kicker}</p>
+          <h1 className="font-display text-3xl">{S.title}</h1>
         </div>
 
-        {/* Camera viewfinder */}
         <Card className="overflow-hidden">
           <div className="aspect-square bg-[#0F0E0E] flex flex-col items-center justify-center relative overflow-hidden">
-            {/* Decorative corners */}
             <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-primary rounded-tl-xl z-10 pointer-events-none" />
             <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-primary rounded-tr-xl z-10 pointer-events-none" />
             <div className="absolute bottom-8 left-8 w-8 h-8 border-b-2 border-l-2 border-primary rounded-bl-xl z-10 pointer-events-none" />
             <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-primary rounded-br-xl z-10 pointer-events-none" />
-
-            {/* Scanning line animation */}
-            {cameraActive && (
-              <div className="absolute left-10 right-10 h-0.5 bg-primary/70 z-10 pointer-events-none animate-scan-line" />
-            )}
-
-            {/* Video element */}
-            <video
-              ref={videoRef}
-              className={`absolute inset-0 w-full h-full object-cover ${cameraActive ? "opacity-100" : "opacity-0"}`}
-              playsInline
-              muted
-            />
-            {/* Hidden canvas for QR processing */}
+            {cameraActive && <div className="absolute left-10 right-10 h-0.5 bg-primary/70 z-10 pointer-events-none animate-scan-line" />}
+            <video ref={videoRef} className={`absolute inset-0 w-full h-full object-cover ${cameraActive ? "opacity-100" : "opacity-0"}`} playsInline muted />
             <canvas ref={canvasRef} className="hidden" />
-
-            {/* Idle / error state */}
             {!cameraActive && (
               <div className="flex flex-col items-center gap-3 z-10 px-8">
                 <Camera className="w-12 h-12 text-white/30" />
                 {cameraError ? (
                   <>
-                    <p className="text-state-error text-sm">{cameraError}</p>
-                    {!cameraSupported && (
-                      <p className="text-white/30 text-xs">Tu navegador no soporta acceso a cámara.</p>
-                    )}
+                    <p className="text-state-error text-sm" role="alert">{cameraError}</p>
+                    {!cameraSupported && <p className="text-white/40 text-xs">{S.unsupported}</p>}
                   </>
                 ) : (
-                  <p className="text-white/50 text-sm">
-                    {cameraSupported
-                      ? "Presiona \"Activar cámara\" para escanear"
-                      : "Cámara no disponible — usa el input manual"}
-                  </p>
+                  <p className="text-white/60 text-sm">{cameraSupported ? S.idle : S.noCamera}</p>
                 )}
               </div>
             )}
           </div>
-
-          {/* Camera controls */}
           {cameraSupported && (
             <div className="p-3 border-t border-border">
               {cameraActive ? (
                 <Button variant="outline" className="w-full" onClick={stopCamera} size="sm">
-                  <CameraOff className="w-4 h-4" /> Detener cámara
+                  <CameraOff className="w-4 h-4" /> {S.stopCamera}
                 </Button>
               ) : (
                 <Button className="w-full" onClick={startCamera} size="sm">
-                  <Camera className="w-4 h-4" /> Activar cámara
+                  <Camera className="w-4 h-4" /> {S.startCamera}
                 </Button>
               )}
             </div>
           )}
         </Card>
 
-        {/* Manual input fallback */}
         <div className="space-y-3 text-left">
-          <p className="text-sm text-muted text-center">O ingresa el código manualmente</p>
+          <p className="text-sm text-muted text-center">{S.manual}</p>
+          <Label htmlFor="qr-manual" className="sr-only">{S.manualLabel}</Label>
           <div className="flex gap-2">
             <Input
-              placeholder="DEMO-QR-asg-1-demo-student-x7k2"
+              id="qr-manual"
+              placeholder="PB-000-XXXX"
               value={token}
+              autoCapitalize="characters"
               onChange={(e) => setToken(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && scanManual()}
               className="font-mono text-xs"
             />
-            <Button loading={loading} onClick={scanManual} disabled={!token.trim()}>
+            <Button loading={loading} onClick={scanManual} disabled={!token.trim()} aria-label={S.validate} title={S.validate}>
               <Search className="w-4 h-4" />
             </Button>
           </div>
-          <p className="text-xs text-muted">
-            Demo: usa <span className="font-mono">DEMO-QR-asg-1-demo-student-x7k2</span>
-          </p>
+          {db.isDemo() && samples.length > 0 && trip && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted">{S.demoHint}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {samples.map((s) => (
+                  <button key={s.id_reserva} type="button" onClick={() => setToken(s.qr_token)}
+                    className="px-2 py-1 rounded-md bg-surface-2 border border-border text-[11px] font-mono hover:border-primary transition-colors">
+                    {s.qr_token}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Result */}
         {result && (
-          <Card className={`overflow-hidden border-2 ${result.ok ? "border-state-ok" : "border-state-error"}`}>
+          <Card className={`overflow-hidden border-2 ${ok ? "border-state-ok" : "border-state-error"}`} role="status" aria-live="polite">
             <CardBody className="space-y-3">
-              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${
-                result.ok ? "bg-state-ok/10" : "bg-state-error/10"
-              }`}>
-                {result.ok
-                  ? <CheckCircle2 className="w-8 h-8 text-state-ok" />
-                  : <XCircle className="w-8 h-8 text-state-error" />
-                }
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${ok ? "bg-state-ok/10" : "bg-state-error/10"}`}>
+                {ok ? <CheckCircle2 className="w-8 h-8 text-state-ok" /> : <XCircle className="w-8 h-8 text-state-error" />}
               </div>
-              <p className={`font-display text-xl ${result.ok ? "text-state-ok" : "text-state-error"}`}>
-                {result.message}
-              </p>
-              {result.reserva && (
-                <div className="text-sm text-muted space-y-1">
-                  <p>Estado: <Badge variant={result.ok ? "success" : "error"}>{result.reserva.estado}</Badge></p>
-                  {result.reserva.qr_escaneado_at && (
-                    <p>Escaneado: {new Date(result.reserva.qr_escaneado_at).toLocaleTimeString("es-EC")}</p>
+              <p className={`font-display text-xl ${ok ? "text-state-ok" : "text-state-error"}`}>{message}</p>
+              {reserva && (
+                <dl className="text-sm text-muted space-y-1.5 text-left bg-surface-2 rounded-lg px-3 py-2">
+                  <div className="flex justify-between gap-2"><dt>{S.passenger}</dt><dd className="font-medium text-foreground">{usuarios.find((u) => u.id_usuario === reserva.id_usuario)?.nombre ?? t.common.unknown}</dd></div>
+                  {resAsg && (
+                    <div className="flex justify-between gap-2"><dt>{S.trip}</dt><dd className="font-medium text-foreground text-right">{resRuta?.codigo} · {fmtDate(resAsg.fecha, { day: "numeric", month: "short" })} · {resAsg.hora_salida}</dd></div>
                   )}
-                </div>
+                  <div className="flex justify-between gap-2 items-center"><dt>{t.common.status}</dt><dd><StatusBadge kind="reservation" value={reserva.estado} /></dd></div>
+                  {reserva.qr_escaneado_at && (
+                    <div className="flex justify-between gap-2"><dt>{S.scannedAt}</dt><dd>{fmtTime(reserva.qr_escaneado_at)}</dd></div>
+                  )}
+                </dl>
               )}
               <Button variant="outline" size="sm" className="w-full" onClick={() => { setResult(null); setToken(""); }}>
-                Escanear otro
+                {S.scanAnother}
               </Button>
             </CardBody>
           </Card>

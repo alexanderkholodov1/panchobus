@@ -3,49 +3,48 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { db } from "@/lib/db";
-import type { Bus } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
+import type { Bus, BusStatus, Ruta } from "@/lib/types";
 import { Bus as BusIcon, Wrench, XCircle, CheckCircle2 } from "lucide-react";
 
-const ESTADO_COLORS: Record<string, "success" | "warning" | "error"> = {
-  activo: "success", mantenimiento: "warning", inactivo: "error"
-};
-const ESTADO_ICONS: Record<string, typeof CheckCircle2> = {
-  activo: CheckCircle2, mantenimiento: Wrench, inactivo: XCircle
-};
+const ICONS: Record<BusStatus, typeof CheckCircle2> = { activo: CheckCircle2, mantenimiento: Wrench, inactivo: XCircle };
+const COUNT_COLOR: Record<BusStatus, string> = { activo: "text-state-ok", mantenimiento: "text-state-warn", inactivo: "text-state-error" };
 
 export default function AdminBusesPage() {
+  const { t } = useI18n();
+  const B = t.admin.buses;
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [rutas, setRutas] = useState<Ruta[]>([]);
 
-  useEffect(() => { db.getBuses().then(setBuses); }, []);
+  useEffect(() => {
+    Promise.all([db.getBuses(), db.getRutas()]).then(([b, r]) => { setBuses(b); setRutas(r); });
+  }, []);
 
   return (
     <AppShell role="admin">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
-          <p className="text-sm text-muted mb-1">Flota</p>
-          <h1 className="font-display text-3xl">Buses</h1>
+          <p className="text-sm text-muted mb-1">{B.kicker}</p>
+          <h1 className="font-display text-3xl">{B.title}</h1>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          {(["activo","mantenimiento","inactivo"] as const).map((estado) => {
-            const count = buses.filter((b) => b.estado === estado).length;
-            return (
-              <Card key={estado}>
-                <CardBody className="text-center py-4">
-                  <p className={`font-display text-3xl text-state-${estado === "activo" ? "ok" : estado === "mantenimiento" ? "warn" : "error"}`}>{count}</p>
-                  <p className="text-xs text-muted mt-1 capitalize">{estado}</p>
-                </CardBody>
-              </Card>
-            );
-          })}
+          {(["activo", "mantenimiento", "inactivo"] as const).map((estado) => (
+            <Card key={estado}>
+              <CardBody className="text-center py-4">
+                <p className={`font-display text-3xl ${COUNT_COLOR[estado]}`}>{buses.filter((b) => b.estado === estado).length}</p>
+                <p className="text-xs text-muted mt-1">{t.status.bus[estado]}</p>
+              </CardBody>
+            </Card>
+          ))}
         </div>
 
         <div className="space-y-2">
           {buses.map((b) => {
-            const Icon = ESTADO_ICONS[b.estado] ?? BusIcon;
-            const variant = ESTADO_COLORS[b.estado] ?? "default";
+            const Icon = ICONS[b.estado] ?? BusIcon;
+            const ruta = rutas.find((r) => r.placa_bus === b.placa);
             return (
               <Card key={b.id_bus}>
                 <CardBody>
@@ -54,18 +53,21 @@ export default function AdminBusesPage() {
                       <BusIcon className="w-5 h-5 text-muted" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium font-mono">{b.placa}</p>
-                        <Badge variant={variant as any}>
-                          <Icon className="w-3.5 h-3.5" />{b.estado.replace("_"," ")}
-                        </Badge>
+                        <StatusBadge kind="bus" value={b.estado} icon={<Icon className="w-3.5 h-3.5" />} />
                       </div>
-                      <p className="text-sm text-muted">{b.modelo} · {b.capacidad} asientos</p>
+                      <p className="text-sm text-muted">{b.modelo} · {B.capacity(b.capacidad)}</p>
                     </div>
-                    <div className="text-right text-xs text-muted">
-                      <span className={b.estado === "activo" ? "text-state-ok" : "text-muted"}>
-                        {b.capacidad} asientos
-                      </span>
+                    <div className="text-right text-xs shrink-0">
+                      {ruta ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: ruta.color_hex }}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: ruta.color_hex }} />
+                          {B.assignedRoute(ruta.codigo)}
+                        </span>
+                      ) : (
+                        <span className="text-muted">{B.noRoute}</span>
+                      )}
                     </div>
                   </div>
                 </CardBody>

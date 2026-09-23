@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Check, AlertTriangle, Info, X } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 interface Toast { id: string; title: string; description?: string; variant: ToastVariant; }
@@ -11,6 +12,7 @@ let externalToast: ((t: Omit<Toast, "id">) => void) | null = null;
 export function toast(t: Omit<Toast, "id">) { externalToast?.(t); }
 
 export function Toaster() {
+  const { t: dict } = useI18n();
   const [items, setItems] = useState<Toast[]>([]);
 
   const addToast = useCallback((t: Omit<Toast, "id">) => {
@@ -39,7 +41,7 @@ export function Toaster() {
             <p className="font-medium text-sm">{t.title}</p>
             {t.description && <p className="text-xs text-muted mt-0.5">{t.description}</p>}
           </div>
-          <button onClick={() => setItems((prev) => prev.filter((x) => x.id !== t.id))} className="shrink-0 text-muted hover:text-foreground" aria-label="Cerrar">
+          <button onClick={() => setItems((prev) => prev.filter((x) => x.id !== t.id))} className="shrink-0 text-muted hover:text-foreground" aria-label={dict.common.close}>
             <X className="w-4 h-4" />
           </button>
         </div>

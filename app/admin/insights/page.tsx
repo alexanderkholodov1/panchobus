@@ -5,150 +5,119 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
+import { useI18n } from "@/lib/i18n";
+import type { Dict } from "@/lib/i18n/es";
 import { toast } from "@/components/ui/toaster";
+import { addDaysISO, occupancyPct, routeShortName } from "@/lib/utils";
 import type { Asignacion, Reserva, Ruta } from "@/lib/types";
-import {
-  Sparkles, TrendingUp, TrendingDown, AlertCircle,
-  RefreshCw, Bus, Users, BarChart2
-} from "lucide-react";
+import { TrendingUp, TrendingDown, AlertCircle, RefreshCw, Bus, Users, BarChart2, Lightbulb, CheckCircle2 } from "lucide-react";
 
-interface Insight {
-  tipo: "saturada" | "subutilizada" | "recomendacion" | "alerta";
-  titulo: string;
-  desc: string;
-  ruta?: Ruta;
-  valor?: string;
+/** Findings are data, not text, so they render in whichever language is active. */
+type Finding =
+  | { tipo: "saturada"; ruta: Ruta; pct: number }
+  | { tipo: "subutilizada"; ruta: Ruta; pct: number }
+  | { tipo: "espera"; count: number }
+  | { tipo: "noshow"; count: number }
+  | { tipo: "top"; ruta: Ruta; total: number; pct: number };
+
+/** Rule-based demand analysis over the last and next 7 days (no model involved). */
+function analyzeData(rutas: Ruta[], asignaciones: Asignacion[], reservas: Reserva[]): Finding[] {
+  const from = addDaysISO(-7);
+  const to = addDaysISO(7);
+  const trips = asignaciones.filter((a) => a.fecha >= from && a.fecha <= to && a.estado !== "cancelada");
+  const inWindow = new Set(trips.map((a) => a.id_asignacion));
+
+  const demanda = rutas
+    .map((r) => {
+      const asgs = trips.filter((a) => a.id_ruta === r.id_ruta);
+      const cap = asgs.reduce((s, a) => s + a.cupos_disponibles, 0);
+      const rsv = asgs.reduce((s, a) => s + a.cupos_reservados, 0);
+      return { ruta: r, pct: occupancyPct(rsv, cap), total: rsv, trips: asgs.length };
+    })
+    .filter((d) => d.trips > 0)
+    .sort((a, b) => b.pct - a.pct);
+
+  const findings: Finding[] = [];
+  demanda.filter((d) => d.pct >= 85).forEach((d) => findings.push({ tipo: "saturada", ruta: d.ruta, pct: d.pct }));
+  demanda.filter((d) => d.pct < 40).forEach((d) => findings.push({ tipo: "subutilizada", ruta: d.ruta, pct: d.pct }));
+  const espera = reservas.filter((r) => r.estado === "en_espera" && inWindow.has(r.id_asignacion)).length;
+  if (espera > 0) findings.push({ tipo: "espera", count: espera });
+  const noShows = reservas.filter((r) => r.estado === "no_show" && inWindow.has(r.id_asignacion)).length;
+  if (noShows > 0) findings.push({ tipo: "noshow", count: noShows });
+  const top = [...demanda].sort((a, b) => b.total - a.total)[0];
+  if (top) findings.push({ tipo: "top", ruta: top.ruta, total: top.total, pct: top.pct });
+  return findings;
 }
 
-function analyzeData(rutas: Ruta[], asignaciones: Asignacion[], reservas: Reserva[]): Insight[] {
-  const insights: Insight[] = [];
-
-  const demanda = rutas.map((r) => {
-    const asgs = asignaciones.filter((a) => a.id_ruta === r.id_ruta);
-    const totalCapacidad = asgs.reduce((s, a) => s + a.cupos_disponibles, 0);
-    const totalReservados = asgs.reduce((s, a) => s + a.cupos_reservados, 0);
-    const pct = totalCapacidad > 0 ? (totalReservados / totalCapacidad) * 100 : 0;
-    return { ruta: r, pct, totalReservados, totalCapacidad, asgs };
-  }).sort((a, b) => b.pct - a.pct);
-
-  demanda.filter((d) => d.pct >= 85).forEach((d) => {
-    insights.push({
-      tipo: "saturada",
-      titulo: `Ruta ${d.ruta.codigo} saturada`,
-      desc: `Ocupación promedio del ${Math.round(d.pct)}%. Se recomienda aumentar frecuencia o agregar bus en horario pico.`,
-      ruta: d.ruta,
-      valor: `${Math.round(d.pct)}%`
-    });
-  });
-
-  demanda.filter((d) => d.pct < 40 && d.asgs.length > 0).forEach((d) => {
-    insights.push({
-      tipo: "subutilizada",
-      titulo: `Ruta ${d.ruta.codigo} subutilizada`,
-      desc: `Ocupación promedio del ${Math.round(d.pct)}%. Considera reducir frecuencia o combinar con ruta cercana.`,
-      ruta: d.ruta,
-      valor: `${Math.round(d.pct)}%`
-    });
-  });
-
-  const waitlists = reservas.filter((r) => r.estado === "en_espera");
-  if (waitlists.length > 0) {
-    insights.push({
-      tipo: "alerta",
-      titulo: `${waitlists.length} pasajero${waitlists.length > 1 ? "s" : ""} en lista de espera`,
-      desc: "Hay estudiantes esperando cupo. Considera habilitar buses adicionales para las rutas afectadas.",
-      valor: `${waitlists.length}`
-    });
+function describe(f: Finding, I: Dict["admin"]["insights"]) {
+  switch (f.tipo) {
+    case "saturada": return { title: I.saturatedTitle(f.ruta.codigo), desc: I.saturatedDesc(f.pct), value: `${f.pct}%` };
+    case "subutilizada": return { title: I.underusedTitle(f.ruta.codigo), desc: I.underusedDesc(f.pct), value: `${f.pct}%` };
+    case "espera": return { title: I.waitlistTitle(f.count), desc: I.waitlistDesc, value: String(f.count) };
+    case "noshow": return { title: I.noShowTitle, desc: I.noShowDesc(f.count), value: String(f.count) };
+    case "top": return { title: I.topTitle(f.ruta.codigo), desc: I.topDesc(f.total, f.pct), value: I.topValue(f.total) };
   }
-
-  const noShows = reservas.filter((r) => r.estado === "no_show");
-  if (noShows.length > 0) {
-    insights.push({
-      tipo: "recomendacion",
-      titulo: "Patrón de no-shows detectado",
-      desc: `${noShows.length} no-shows registrados. Implementar recordatorio automático 1h antes del viaje podría reducirlos.`,
-      valor: `${noShows.length}`
-    });
-  }
-
-  if (demanda.length > 0) {
-    const top = demanda[0];
-    insights.push({
-      tipo: "recomendacion",
-      titulo: `Ruta más demandada: ${top.ruta.codigo}`,
-      desc: `${top.totalReservados} reservas totales con ${Math.round(top.pct)}% de ocupación. Priorizar mantenimiento del bus asignado.`,
-      ruta: top.ruta,
-      valor: `${top.totalReservados} reservas`
-    });
-  }
-
-  return insights;
 }
 
-const TIPO_META: Record<string, { icon: typeof Sparkles; color: string; bg: string }> = {
-  saturada:     { icon: TrendingUp,   color: "text-state-error",  bg: "bg-state-error/10 border-state-error/20" },
-  subutilizada: { icon: TrendingDown, color: "text-state-warn",   bg: "bg-state-warn/10 border-state-warn/20" },
-  alerta:       { icon: AlertCircle,  color: "text-state-warn",   bg: "bg-state-warn/10 border-state-warn/20" },
-  recomendacion:{ icon: Sparkles,     color: "text-primary",      bg: "bg-usfq-red-tint/30 border-primary/20" }
+const META: Record<Finding["tipo"], { icon: typeof TrendingUp; color: string; bg: string }> = {
+  saturada: { icon: TrendingUp, color: "text-state-error", bg: "bg-state-error/10 border-state-error/20" },
+  subutilizada: { icon: TrendingDown, color: "text-state-warn", bg: "bg-state-warn/10 border-state-warn/20" },
+  espera: { icon: AlertCircle, color: "text-state-warn", bg: "bg-state-warn/10 border-state-warn/20" },
+  noshow: { icon: Lightbulb, color: "text-primary", bg: "bg-usfq-red-tint/40 border-primary/20" },
+  top: { icon: Lightbulb, color: "text-primary", bg: "bg-usfq-red-tint/40 border-primary/20" }
 };
 
 export default function AdminInsightsPage() {
+  const { t, fmtTime } = useI18n();
+  const I = t.admin.insights;
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRun, setLastRun] = useState<Date | null>(null);
 
-  const load = async () => {
+  const run = async (notify: boolean) => {
+    setLoading(true);
     const [r, a, rv] = await Promise.all([db.getRutas(), db.getAsignaciones(), db.getReservas()]);
     setRutas(r); setAsignaciones(a); setReservas(rv);
-    return { r, a, rv };
-  };
-
-  const run = async () => {
-    setLoading(true);
-    const { r, a, rv } = await load();
     const result = analyzeData(r, a, rv);
-    setInsights(result);
+    setFindings(result);
     setLastRun(new Date());
     setLoading(false);
-    toast({ title: "Análisis completado", description: result.length + " hallazgos generados", variant: "success" });
+    if (notify) toast({ title: I.toastDone, description: I.toastCount(result.length), variant: "success" });
   };
 
-  useEffect(() => { run(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { run(false); }, []);
 
-  const totalReservas = reservas.length;
-  const confirmadas = reservas.filter((r) => r.estado === "confirmada").length;
-  const usadas = reservas.filter((r) => r.estado === "usada").length;
-  const ocupGlobal = asignaciones.length
-    ? Math.round(asignaciones.reduce((s, a) => s + (a.cupos_reservados / a.cupos_disponibles) * 100, 0) / asignaciones.length)
-    : 0;
+  const from = addDaysISO(-7);
+  const to = addDaysISO(7);
+  const trips = asignaciones.filter((a) => a.fecha >= from && a.fecha <= to && a.estado !== "cancelada");
+  const capTotal = trips.reduce((s, a) => s + a.cupos_disponibles, 0);
+  const rsvTotal = trips.reduce((s, a) => s + a.cupos_reservados, 0);
 
   return (
     <AppShell role="admin">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <p className="text-sm text-muted mb-1">Inteligencia artificial</p>
-            <h1 className="font-display text-3xl sm:text-4xl">Insights IA</h1>
-            {lastRun && (
-              <p className="text-xs text-muted mt-1">
-                Último análisis: {lastRun.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
+          <div className="max-w-2xl">
+            <p className="text-sm text-muted mb-1">{I.kicker}</p>
+            <h1 className="font-display text-3xl sm:text-4xl">{I.title}</h1>
+            <p className="text-sm text-muted mt-2">{I.method}</p>
+            {lastRun && <p className="text-xs text-muted mt-1">{I.lastRun(fmtTime(lastRun))}</p>}
           </div>
-          <Button onClick={run} loading={loading}>
-            <RefreshCw className="w-4 h-4" />Analizar ahora
+          <Button onClick={() => run(true)} loading={loading}>
+            <RefreshCw className="w-4 h-4" />{I.run}
           </Button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Ocupación global", value: `${ocupGlobal}%`, icon: BarChart2, color: "text-primary" },
-            { label: "Total reservas", value: totalReservas, icon: Users, color: "text-state-ok" },
-            { label: "Confirmadas", value: confirmadas, icon: Sparkles, color: "text-panchobus-orange" },
-            { label: "Viajes realizados", value: usadas, icon: Bus, color: "text-muted" }
+            { label: I.kpiOccupancy, value: `${occupancyPct(rsvTotal, capTotal)}%`, icon: BarChart2, color: "text-primary" },
+            { label: I.kpiBookings, value: reservas.length, icon: Users, color: "text-state-ok" },
+            { label: I.kpiConfirmed, value: reservas.filter((r) => r.estado === "confirmada").length, icon: CheckCircle2, color: "text-panchobus-orange" },
+            { label: I.kpiTrips, value: reservas.filter((r) => r.estado === "usada").length, icon: Bus, color: "text-muted" }
           ].map((m) => {
             const Icon = m.icon;
             return (
@@ -164,33 +133,35 @@ export default function AdminInsightsPage() {
         </div>
 
         <div>
-          <h2 className="font-display text-xl mb-4">Hallazgos ({insights.length})</h2>
-          {insights.length === 0 && !loading && (
+          <h2 className="font-display text-xl mb-4">{I.findings(findings.length)}</h2>
+          {findings.length === 0 && !loading && (
             <Card><CardBody className="text-center py-10 text-muted">
-              <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p>Haz clic en "Analizar ahora" para generar insights.</p>
+              <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p>{I.empty}</p>
             </CardBody></Card>
           )}
           <div className="space-y-3">
-            {insights.map((ins, i) => {
-              const meta = TIPO_META[ins.tipo];
+            {findings.map((f, i) => {
+              const meta = META[f.tipo];
               const Icon = meta.icon;
+              const text = describe(f, I);
+              const ruta = "ruta" in f ? f.ruta : null;
               return (
                 <div key={i} className={`rounded-2xl border p-4 ${meta.bg}`}>
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-white/50 dark:bg-black/20 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-white/60 dark:bg-black/20 flex items-center justify-center shrink-0">
                       <Icon className={`w-5 h-5 ${meta.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className={`font-medium ${meta.color}`}>{ins.titulo}</p>
-                        {ins.valor && <span className={`text-sm font-bold shrink-0 ${meta.color}`}>{ins.valor}</span>}
+                        <p className={`font-medium ${meta.color}`}>{text.title}</p>
+                        <span className={`text-sm font-bold shrink-0 ${meta.color}`}>{text.value}</span>
                       </div>
-                      <p className="text-sm text-muted">{ins.desc}</p>
-                      {ins.ruta && (
+                      <p className="text-sm text-muted">{text.desc}</p>
+                      {ruta && (
                         <div className="mt-2 flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ background: ins.ruta.color_hex }} />
-                          <span className="text-xs text-muted">{ins.ruta.codigo} · {ins.ruta.nombre}</span>
+                          <div className="w-3 h-3 rounded-full" style={{ background: ruta.color_hex }} />
+                          <span className="text-xs text-muted">{ruta.codigo} · {ruta.nombre}</span>
                         </div>
                       )}
                     </div>
@@ -202,34 +173,34 @@ export default function AdminInsightsPage() {
         </div>
 
         <div>
-          <h2 className="font-display text-xl mb-4">Demanda por ruta</h2>
+          <h2 className="font-display text-xl mb-4">{I.demandByRoute}</h2>
           <Card>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-4 py-3 font-medium text-muted">Ruta</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted">Reservas</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted">Capacidad</th>
-                    <th className="px-4 py-3 font-medium text-muted w-32">Ocupación</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-muted">{I.colRoute}</th>
+                    <th scope="col" className="text-right px-4 py-3 font-medium text-muted">{I.colBooked}</th>
+                    <th scope="col" className="text-right px-4 py-3 font-medium text-muted">{I.colCapacity}</th>
+                    <th scope="col" className="px-4 py-3 font-medium text-muted w-40">{I.colOccupancy}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rutas.map((r) => {
-                    const asgs = asignaciones.filter((a) => a.id_ruta === r.id_ruta);
+                    const asgs = trips.filter((a) => a.id_ruta === r.id_ruta);
                     const cap = asgs.reduce((s, a) => s + a.cupos_disponibles, 0);
                     const rsv = asgs.reduce((s, a) => s + a.cupos_reservados, 0);
-                    const pct = cap > 0 ? Math.round((rsv / cap) * 100) : 0;
+                    const pct = occupancyPct(rsv, cap);
                     const barColor = pct >= 85 ? "#C13030" : pct >= 60 ? "#E89F1F" : "#2A7D4F";
                     return (
                       <tr key={r.id_ruta} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
+                        <th scope="row" className="px-4 py-3 text-left font-normal">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ background: r.color_hex }} />
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: r.color_hex }} />
                             <span className="font-medium">{r.codigo}</span>
-                            <span className="text-muted truncate max-w-[120px] hidden sm:block">{r.nombre.split("—")[1]?.trim()??r.nombre}</span>
+                            <span className="text-muted truncate max-w-[140px] hidden sm:block">{routeShortName(r.nombre)}</span>
                           </div>
-                        </td>
+                        </th>
                         <td className="px-4 py-3 text-right font-mono">{rsv}</td>
                         <td className="px-4 py-3 text-right font-mono text-muted">{cap}</td>
                         <td className="px-4 py-3">
@@ -237,7 +208,7 @@ export default function AdminInsightsPage() {
                             <div className="flex-1 h-2 bg-surface-2 rounded-full overflow-hidden">
                               <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
                             </div>
-                            <span className="text-xs font-medium w-8 text-right" style={{ color: barColor }}>{pct}%</span>
+                            <span className="text-xs font-medium w-9 text-right" style={{ color: barColor }}>{pct}%</span>
                           </div>
                         </td>
                       </tr>

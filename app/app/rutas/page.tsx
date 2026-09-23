@@ -5,13 +5,12 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { db } from "@/lib/db";
+import { useI18n } from "@/lib/i18n";
+import { localHHMM, localISODate } from "@/lib/utils";
 import type { Asignacion, Parada, Ruta } from "@/lib/types";
 import { MapPin, Search, Clock, ChevronRight, Bus } from "lucide-react";
-
-const DIA_LABELS: Record<string, string> = {
-  L: "Lun", M: "Mar", X: "Mié", J: "Jue", V: "Vie", S: "Sáb", D: "Dom"
-};
 
 function desaturateHex(hex: string, satPct = 15): string {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -43,14 +42,16 @@ function desaturateHex(hex: string, satPct = 15): string {
 }
 
 export default function RutasPage() {
+  const { t, localized } = useI18n();
+  const T = t.student.routes;
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "activa" | "suspendida">("todas");
 
-  const today = new Date().toISOString().slice(0, 10);
-  const nowTime = new Date().toTimeString().slice(0, 5);
+  const today = localISODate();
+  const nowTime = localHHMM();
 
   useEffect(() => {
     Promise.all([db.getRutas(), db.getAllParadas(), db.getAsignaciones()]).then(([r, p, a]) => {
@@ -60,10 +61,11 @@ export default function RutasPage() {
     });
   }, [today]);
 
+  // A route is "done for today" only when every one of today's departures has finished.
   const isRoutePast = (idRuta: number): boolean => {
-    const asg = asignaciones.find((a) => a.id_ruta === idRuta);
-    if (!asg) return false;
-    return asg.estado === "completada" || asg.hora_regreso < nowTime;
+    const asgs = asignaciones.filter((a) => a.id_ruta === idRuta);
+    if (asgs.length === 0) return false;
+    return asgs.every((a) => a.estado === "completada" || a.estado === "cancelada" || a.hora_regreso < nowTime);
   };
 
   const filtered = useMemo(() => {
@@ -72,11 +74,11 @@ export default function RutasPage() {
       ? new Set(paradas.filter((p) => p.nombre.toLowerCase().includes(query)).map((p) => p.id_ruta))
       : null;
     return rutas.filter((r) => {
-      const matchQ = !query || r.nombre.toLowerCase().includes(query) || r.codigo.toLowerCase().includes(query) || r.descripcion.toLowerCase().includes(query) || (rutasConParadaCoincidente?.has(r.id_ruta) ?? false);
+      const matchQ = !query || r.nombre.toLowerCase().includes(query) || r.codigo.toLowerCase().includes(query) || localized(r, "descripcion").toLowerCase().includes(query) || (rutasConParadaCoincidente?.has(r.id_ruta) ?? false);
       const matchF = filtro === "todas" || r.estado === filtro;
       return matchQ && matchF;
     });
-  }, [rutas, paradas, q, filtro]);
+  }, [rutas, paradas, q, filtro, localized]);
 
   const getMatchingParadas = (idRuta: number): string[] => {
     if (!q.trim()) return [];
@@ -88,30 +90,30 @@ export default function RutasPage() {
     <AppShell role="estudiante">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
-          <p className="text-sm text-muted mb-1">Explorar</p>
-          <h1 className="font-display text-3xl sm:text-4xl">Rutas</h1>
+          <p className="text-sm text-muted mb-1">{T.kicker}</p>
+          <h1 className="font-display text-3xl sm:text-4xl">{T.title}</h1>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-            <input className="w-full h-10 pl-10 pr-3 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" placeholder="Buscar por nombre, código, barrio o parada…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input type="search" aria-label={T.searchPlaceholder} className="w-full h-10 pl-10 pr-3 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" placeholder={T.searchPlaceholder} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <div className="flex gap-2">
             {(["todas", "activa", "suspendida"] as const).map((f) => (
-              <button key={f} onClick={() => setFiltro(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filtro === f ? "bg-primary text-primary-foreground" : "bg-surface border border-border hover:bg-surface-2"}`}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+              <button key={f} aria-pressed={filtro === f} onClick={() => setFiltro(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filtro === f ? "bg-primary text-primary-foreground" : "bg-surface border border-border hover:bg-surface-2"}`}>
+                {f === "todas" ? T.filterAll : f === "activa" ? T.filterActive : T.filterSuspended}
               </button>
             ))}
           </div>
         </div>
-        <p className="text-sm text-muted">{filtered.length} {filtered.length === 1 ? "ruta" : "rutas"} encontradas{q.trim() && <span className="ml-1">para &ldquo;{q}&rdquo;</span>}</p>
+        <p className="text-sm text-muted" aria-live="polite">{T.found(filtered.length)}{q.trim() && <span className="ml-1">{T.foundFor(q.trim())}</span>}</p>
         <div className="space-y-3">
           {filtered.map((r) => {
             const matchingParadas = getMatchingParadas(r.id_ruta);
             const past = isRoutePast(r.id_ruta);
             const displayColor = past ? desaturateHex(r.color_hex) : r.color_hex;
             return (
-              <Link key={r.id_ruta} href={`/app/rutas/${r.id_ruta}`}>
+              <Link key={r.id_ruta} href={`/app/rutas/${r.id_ruta}`} className="block">
                 <Card className={`hover:shadow-card-lg transition-all group overflow-hidden cursor-pointer${past ? " opacity-60" : ""}`}>
                   <div className="h-1" style={{ background: displayColor }} />
                   <CardBody>
@@ -120,21 +122,21 @@ export default function RutasPage() {
                         {r.codigo}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="font-display text-lg leading-tight">{r.nombre}</span>
-                          {r.estado !== "activa" && <Badge variant="warning">{r.estado}</Badge>}
-                          {past && <Badge variant="default">completada</Badge>}
+                          {r.estado !== "activa" && <StatusBadge kind="route" value={r.estado} />}
+                          {past && <Badge variant="default">{T.doneToday}</Badge>}
                         </div>
-                        <p className="text-sm text-muted line-clamp-1 mb-2">{r.descripcion}</p>
+                        <p className="text-sm text-muted line-clamp-1 mb-2">{localized(r, "descripcion")}</p>
                         <div className="flex flex-wrap gap-3 text-xs text-muted">
-                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{r.numero_paradas} paradas</span>
-                          <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5" />{r.numero_asientos} asientos</span>
-                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{r.dias_operacion.map((d) => DIA_LABELS[d] ?? d).join(" · ")}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{t.common.stops(r.numero_paradas)}</span>
+                          <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5" />{t.common.seats(r.numero_asientos)}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{r.dias_operacion.map((d) => t.days[d as keyof typeof t.days] ?? d).join(" · ")}</span>
                         </div>
                         {matchingParadas.length > 0 && (
                           <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: displayColor }}>
                             <MapPin className="w-3 h-3" />
-                            <span>Parada: {matchingParadas.join(", ")}</span>
+                            <span>{T.stopMatch(matchingParadas.join(", "))}</span>
                           </div>
                         )}
                       </div>
@@ -148,8 +150,8 @@ export default function RutasPage() {
           {filtered.length === 0 && (
             <div className="text-center py-16 text-muted">
               <Bus className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Sin resultados</p>
-              <p className="text-sm mt-1">Intenta con otro nombre de ruta o parada.</p>
+              <p className="font-medium">{T.noResults}</p>
+              <p className="text-sm mt-1">{T.noResultsText}</p>
             </div>
           )}
         </div>

@@ -6,7 +6,10 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { db } from "@/lib/db";
+import { useI18n, type Lang } from "@/lib/i18n";
+import { initials as toInitials } from "@/lib/utils";
 import { useSession } from "@/components/providers/demo-session";
 import { toast } from "@/components/ui/toaster";
 import type { Ruta } from "@/lib/types";
@@ -16,7 +19,9 @@ import { useTheme } from "next-themes";
 
 export default function PerfilPage() {
   const { user, logout, refresh } = useSession();
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
+  const { t, lang, setLang } = useI18n();
+  const P = t.student.profile;
   const router = useRouter();
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [form, setForm] = useState({ nombre: "", telefono: "", direccion: "", id_ruta: "", idioma: "es", tema: "system" });
@@ -33,9 +38,10 @@ export default function PerfilPage() {
       telefono: user.telefono,
       direccion: user.direccion ?? "",
       id_ruta: user.id_ruta?.toString() ?? "",
-      idioma: user.idioma ?? "es",
-      tema: user.tema ?? "system"
+      idioma: lang,
+      tema: theme ?? user.tema ?? "system"
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -45,6 +51,7 @@ export default function PerfilPage() {
     if (!user) return;
     setSaving(true);
     setTheme(form.tema);
+    setLang(form.idioma as Lang);
     await db.updateUsuario(user.id_usuario, {
       nombre: form.nombre,
       telefono: form.telefono,
@@ -54,7 +61,7 @@ export default function PerfilPage() {
       tema: form.tema as "light" | "dark" | "system"
     });
     await refresh();
-    toast({ title: "Perfil actualizado", variant: "success" });
+    toast({ title: t.student.profile.toastSaved, variant: "success" });
     setSaving(false);
   };
 
@@ -62,14 +69,14 @@ export default function PerfilPage() {
 
   if (!user) return null;
 
-  const initials = user.nombre.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+  const initials = toInitials(user.nombre);
 
   return (
     <AppShell role="estudiante">
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div>
-          <p className="text-sm text-muted mb-1">Cuenta</p>
-          <h1 className="font-display text-3xl">Mi perfil</h1>
+          <p className="text-sm text-muted mb-1">{P.kicker}</p>
+          <h1 className="font-display text-3xl">{P.title}</h1>
         </div>
 
         {/* Avatar + rol */}
@@ -81,9 +88,9 @@ export default function PerfilPage() {
             <p className="font-display text-xl">{user.nombre}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={user.rol === "admin" ? "warning" : user.rol === "chofer" ? "info" : "default"}>
-                {user.rol}
+                {t.roles[user.rol]}
               </Badge>
-              <Badge variant={user.estado === "activo" ? "success" : "warning"}>{user.estado}</Badge>
+              <StatusBadge kind="user" value={user.estado} />
             </div>
           </div>
         </div>
@@ -91,15 +98,15 @@ export default function PerfilPage() {
         {/* Read-only info */}
         <Card>
           <CardBody className="space-y-3 text-sm">
-            <p className="font-display text-sm uppercase tracking-wider text-muted">Información de cuenta</p>
-            <div className="flex items-center gap-3">
-              <Mail className="w-4 h-4 text-muted" />
-              <span className="text-muted">Correo:</span>
-              <span className="font-medium">{user.correo_electronico}</span>
+            <p className="font-display text-sm uppercase tracking-wider text-muted">{P.accountInfo}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <Mail className="w-4 h-4 text-muted shrink-0" />
+              <span className="text-muted">{P.email}:</span>
+              <span className="font-medium truncate">{user.correo_electronico}</span>
             </div>
             <div className="flex items-center gap-3">
               <Hash className="w-4 h-4 text-muted" />
-              <span className="text-muted">Banner:</span>
+              <span className="text-muted">{P.banner}:</span>
               <span className="font-medium font-mono">{user.codigo_banner}</span>
             </div>
           </CardBody>
@@ -108,23 +115,23 @@ export default function PerfilPage() {
         {/* Editable */}
         <Card>
           <CardBody className="space-y-4">
-            <p className="font-display text-sm uppercase tracking-wider text-muted">Datos personales</p>
+            <p className="font-display text-sm uppercase tracking-wider text-muted">{P.personal}</p>
             <div>
-              <Label htmlFor="nombre"><UserCircle2 className="w-3.5 h-3.5 inline mr-1" />Nombre completo</Label>
+              <Label htmlFor="nombre"><UserCircle2 className="w-3.5 h-3.5 inline mr-1" />{P.fullName}</Label>
               <Input id="nombre" value={form.nombre} onChange={set("nombre")} />
             </div>
             <div>
-              <Label htmlFor="tel"><Phone className="w-3.5 h-3.5 inline mr-1" />Teléfono</Label>
+              <Label htmlFor="tel"><Phone className="w-3.5 h-3.5 inline mr-1" />{P.phone}</Label>
               <Input id="tel" value={form.telefono} onChange={set("telefono")} />
             </div>
             <div>
-              <Label htmlFor="dir"><MapPin className="w-3.5 h-3.5 inline mr-1" />Sector / barrio</Label>
+              <Label htmlFor="dir"><MapPin className="w-3.5 h-3.5 inline mr-1" />{P.area}</Label>
               <Input id="dir" value={form.direccion} onChange={set("direccion")} />
             </div>
             <div>
-              <Label htmlFor="ruta"><Route className="w-3.5 h-3.5 inline mr-1" />Ruta de interés</Label>
+              <Label htmlFor="ruta"><Route className="w-3.5 h-3.5 inline mr-1" />{P.route}</Label>
               <Select id="ruta" value={form.id_ruta} onChange={set("id_ruta")}>
-                <option value="">Sin preferencia</option>
+                <option value="">{P.noPreference}</option>
                 {rutas.map((r) => (
                   <option key={r.id_ruta} value={r.id_ruta}>{r.codigo} · {r.nombre}</option>
                 ))}
@@ -136,24 +143,27 @@ export default function PerfilPage() {
         {/* Preferencias */}
         <Card>
           <CardBody className="space-y-4">
-            <p className="font-display text-sm uppercase tracking-wider text-muted">Preferencias</p>
+            <p className="font-display text-sm uppercase tracking-wider text-muted">{P.preferences}</p>
             <div>
-              <Label htmlFor="idioma">Idioma</Label>
+              <Label htmlFor="idioma">{P.language}</Label>
               <Select id="idioma" value={form.idioma} onChange={set("idioma")}>
                 <option value="es">Español</option>
                 <option value="en">English</option>
               </Select>
             </div>
             <div>
-              <Label>Tema</Label>
-              <div className="flex gap-2 mt-1">
+              <Label>{P.theme}</Label>
+              <div className="flex gap-2 mt-1" role="radiogroup" aria-label={P.theme}>
                 {[
-                  { val: "light", label: "Claro", icon: Sun },
-                  { val: "dark",  label: "Oscuro", icon: Moon },
-                  { val: "system",label: "Sistema", icon: Monitor }
+                  { val: "light", label: t.theme.light, icon: Sun },
+                  { val: "dark",  label: t.theme.dark, icon: Moon },
+                  { val: "system",label: t.theme.system, icon: Monitor }
                 ].map(({ val, label, icon: Icon }) => (
                   <button
                     key={val}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.tema === val}
                     onClick={() => setForm((f) => ({ ...f, tema: val }))}
                     className={`flex-1 py-2.5 rounded-xl border-2 flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
                       form.tema === val ? "border-primary bg-usfq-red-tint/20 text-primary" : "border-border hover:border-primary/40"
@@ -169,7 +179,7 @@ export default function PerfilPage() {
         </Card>
 
         <Button className="w-full" size="lg" loading={saving} onClick={save}>
-          <Save className="w-4 h-4" /> Guardar cambios
+          <Save className="w-4 h-4" /> {P.save}
         </Button>
 
         <button
@@ -177,7 +187,7 @@ export default function PerfilPage() {
           className="w-full flex items-center justify-center gap-2 py-3 text-state-error text-sm font-medium hover:bg-state-error/5 rounded-xl transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          Cerrar sesión
+          {P.logout}
         </button>
       </div>
     </AppShell>

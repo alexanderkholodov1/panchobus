@@ -1,7 +1,7 @@
 {
-  "name": "Pancho Bus · USFQ",
+  "name": "Pancho Bus",
   "short_name": "Pancho Bus",
-  "description": "Transporte universitario USFQ — reserva tu cupo y sigue tu bus en tiempo real.",
+  "description": "Campus shuttle booking platform (portfolio project, synthetic data) · Plataforma de reserva de transporte universitario (proyecto de portafolio, datos sintéticos).",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -23,19 +23,22 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "travel"],
+  "categories": [
+    "education",
+    "travel"
+  ],
   "shortcuts": [
     {
-      "name": "Reservar cupo",
+      "name": "Reservar cupo / Book a seat",
       "short_name": "Reservar",
       "url": "/app/reservar",
-      "description": "Reserva un cupo en tu ruta"
+      "description": "Reserva un cupo / Book a seat on a route"
     },
     {
-      "name": "Mis reservas",
-      "short_name": "Mis reservas",
+      "name": "Mis reservas / My bookings",
+      "short_name": "Reservas",
       "url": "/app/mis-reservas",
-      "description": "Ver tus reservas activas"
+      "description": "Tus reservas activas / Your active bookings"
     }
   ]
 }

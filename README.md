@@ -1,12 +1,13 @@
 # Pancho Bus
 
-**A dedicated platform for the free university shuttle at Universidad San Francisco de Quito.** Seat booking, QR boarding, live route tracking, operational messaging and demand analytics, in one system shared by the groups that keep the service running: students, administration, route staff and campus security.
+**A dedicated platform for the free university shuttle at Universidad San Francisco de Quito.** Seat booking, QR boarding, live route tracking, operational messaging and demand analytics, in one system shared by the groups that keep the service running: students, administration and route staff.
 
 | | |
 |---|---|
 | Live demo | **https://panchobus-backend--panchobus-1.us-east4.hosted.app/** |
-| Demo accounts | One click from the login screen: student, administrator, route staff |
-| Status | Working prototype, running on real route and stop data. Not presented to the university; not an official USFQ product |
+| Demo accounts | One click from the login screen: student (Valeria Castro), administrator (Daniela Ruiz), route staff (Martín Guerrero) |
+| Languages | Spanish and English on every screen, switchable from the header |
+| Status | Working prototype on synthetic data. Not presented to the university; not an official USFQ product |
 | Origin | Built for Web Development 2 at USFQ, from a problem the authors use every day |
 
 ---
@@ -29,7 +30,7 @@ These were decided before the first screen and none of them moved.
 
 1. **Access should not depend on physical presence.** Nothing in the product requires standing in a line or reaching an office. A student books, boards and cancels from a phone.
 2. **State must be visible to whoever it affects.** Occupancy, delays, route changes and waitlist position are shown to the person who needs them, while a decision still depends on them.
-3. **One record, four views.** Student, administrator, route staff and security read and write the same trip, each through the surface their job needs.
+3. **One record, three views.** Student, administrator and route staff read and write the same trip, each through the surface their job needs.
 4. **Zero cost to operate.** The whole stack runs on free tiers. A university service that costs nothing to run is a service that can actually be adopted.
 5. **Institutional, not decorative.** The product uses the university's official visual identity rather than an invented one, because it has to read as part of the institution to be trusted by it.
 6. **Evaluable without credentials.** Demo mode is the default: anyone, including the decision maker who would have to approve this, can open the live link and use all three roles with no setup.
@@ -52,7 +53,7 @@ These were decided before the first screen and none of them moved.
 |---|---|
 | Seats gone by mid-morning, with no visibility | Advance booking with per-departure occupancy and an automatic waitlist that promotes on cancellation |
 | Stickers handed out in a physical queue | Signed boarding QR on the student's phone, scanned by route staff, with manual code entry when a camera fails |
-| Routes published as PDFs | Route explorer with search, stop-by-stop detail and real coordinates on an interactive map |
+| Routes published as PDFs | Route explorer with search, stop-by-stop detail and an interactive map |
 | No way to announce a delay or a change | Administration messaging to a single user or an entire route, plus driver alerts |
 | Four groups, four partial versions of the truth | One data layer, three role surfaces, shared trip state |
 
@@ -70,15 +71,17 @@ Built with a classmate, who produced the brand identity manual, moodboard, palet
 
 ## Scope: what is real and what is a demo
 
-**Real and working:** all 21 screens; booking with waitlist logic; QR generation and verification by manual code; the interactive map with real coordinates for 8 Quito and Cumbayá routes and 47 stops; GPS reporting from the route staff view to `/api/gps`; messaging; CSV export; rule-based analytics; light and dark themes; PWA manifest; continuous deployment to Firebase App Hosting.
+**Real and working:** all 21 screens in Spanish and English; booking with one seat per person per departure, an automatic waitlist and promotion on cancellation; QR generation and verification by camera or manual code; the interactive map; GPS reporting from the route staff view to `/api/gps`; messaging to a user, a route or everyone; CSV export; rule-based analytics; light and dark themes; PWA manifest; continuous deployment to Firebase App Hosting.
 
-**Demo, by design:** with no Supabase environment variables the app runs entirely on a seeded in-memory store persisted to `localStorage`, including a simulated session. QR scanning uses manual code entry rather than the camera. No email is sent.
+**Demo, by design:** with no Supabase environment variables the app runs entirely on a seeded in-memory store persisted to `localStorage`, including a simulated session. The "i" button in the header explains the project and resets the demo. No email is sent.
 
-**Next, in priority order:** Supabase schema with row-level security per role and real authentication (the data layer in `lib/db/index.ts` is already written as one interface with both branches); camera-based QR scanning; transactional email for booking confirmations and status changes; passenger-facing live bus location; push notifications for status changes.
+**Synthetic data.** Every person, email, code, route, stop and schedule in the demo is invented: 8 fictional routes and 37 stops around public Quito neighbourhoods, 47 users on reserved `*.example` domains, and ten days of departures and bookings generated relative to today, so the demo always looks current. No real rider, staff member or official route is represented.
+
+**Next, in priority order:** Supabase schema with row-level security per role and real authentication (the data layer in `lib/db/index.ts` is already written as one interface with both branches); transactional email for booking confirmations and status changes; passenger-facing live bus location; push notifications for status changes.
 
 ## Tech
 
-Next.js 14 (App Router), TypeScript, Tailwind CSS with a custom design system, Supabase (Postgres, Auth, RLS) in production with an in-memory store in demo mode, Leaflet with OpenStreetMap tiles, lucide-react, deployed on Firebase App Hosting.
+Next.js 14 (App Router), TypeScript, Tailwind CSS with a custom design system, Supabase (Postgres, Auth, RLS) in production with an in-memory store in demo mode, Leaflet with OpenStreetMap tiles, a typed ES/EN dictionary layer, lucide-react, deployed on Firebase App Hosting.
 
 ```
 app/
@@ -92,7 +95,8 @@ components/           Layout shell, providers, UI primitives
 lib/
   types.ts            Domain model, single source of truth
   db/index.ts         Data access layer: one interface, demo and Supabase branches
-  data/seed.ts        8 routes, 47 stops with real coordinates, 9 users
+  data/seed.ts        Synthetic, deterministic demo data generated relative to today
+  i18n/               Spanish and English dictionaries (English is type-checked against Spanish)
 ```
 
 **Run it locally.**
