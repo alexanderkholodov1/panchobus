@@ -3,31 +3,33 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { db } from "@/lib/db";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "@/components/ui/toaster";
 import type { Ruta } from "@/lib/types";
 import { Plus, Pencil, Trash2, X, Check, Bus, MapPin } from "lucide-react";
 
 const EMPTY_FORM = {
   codigo: "", nombre: "", descripcion: "", color_hex: "#E11B22",
-  numero_asientos: "36", dias_operacion: ["L","M","X","J","V"], estado: "activa"
+  numero_asientos: "36", dias_operacion: ["L", "M", "X", "J", "V"], estado: "activa"
 };
-
-const DIAS_OPT = ["L","M","X","J","V","S","D"];
-const DIAS_LABELS: Record<string,string> = { L:"Lun",M:"Mar",X:"Mié",J:"Jue",V:"Vie",S:"Sáb",D:"Dom" };
+const DIAS_OPT = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
 export default function AdminRutasPage() {
+  const { t, localized } = useI18n();
+  const R = t.admin.routes;
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
-  const load = () => db.getRutas().then(setRutas);
+  const load = () => db.getRutas().then((r) => setRutas([...r]));
   useEffect(() => { load(); }, []);
 
   const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -37,7 +39,7 @@ export default function AdminRutasPage() {
     ...f,
     dias_operacion: f.dias_operacion.includes(d)
       ? f.dias_operacion.filter((x) => x !== d)
-      : [...f.dias_operacion, d]
+      : DIAS_OPT.filter((x) => x === d || f.dias_operacion.includes(x))
   }));
 
   const openNew = () => { setForm(EMPTY_FORM); setEditing(null); setShowForm(true); };
@@ -49,115 +51,123 @@ export default function AdminRutasPage() {
     });
     setEditing(r.id_ruta);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const save = async () => {
-    if (!form.codigo || !form.nombre) return toast({ title: "Completa código y nombre", variant: "error" });
+    const codigo = form.codigo.trim().toUpperCase();
+    if (!codigo || !form.nombre.trim()) return toast({ title: R.errRequired, variant: "error" });
+    if (rutas.some((r) => r.codigo.toUpperCase() === codigo && r.id_ruta !== editing)) {
+      return toast({ title: R.errDuplicate, variant: "error" });
+    }
     setSaving(true);
-    const payload = {
-      codigo: form.codigo.toUpperCase(),
-      nombre: form.nombre,
-      descripcion: form.descripcion,
+    const editable = {
+      codigo,
+      nombre: form.nombre.trim(),
+      descripcion: form.descripcion.trim(),
       color_hex: form.color_hex,
-      numero_asientos: Number(form.numero_asientos),
+      numero_asientos: Math.max(1, Number(form.numero_asientos) || 1),
       dias_operacion: form.dias_operacion,
       estado: form.estado as Ruta["estado"],
-      numero_paradas: 0,
-      placa_bus: null,
-      telefono_contacto: "",
-      nombre_chofer: "",
       disponible: form.estado === "activa"
     };
     if (editing !== null) {
-      await db.updateRuta(editing, payload);
-      toast({ title: "Ruta actualizada", variant: "success" });
+      const current = rutas.find((r) => r.id_ruta === editing);
+      // Only the fields in the form change; stops, bus, driver and contact are preserved.
+      // A new description replaces the seeded English translation with the text as written.
+      const patch: Partial<Ruta> = { ...editable };
+      if (current && current.descripcion !== editable.descripcion) patch.descripcion_en = undefined;
+      await db.updateRuta(editing, patch);
+      toast({ title: R.toastUpdated, variant: "success" });
     } else {
-      await db.createRuta(payload);
-      toast({ title: "Ruta creada", variant: "success" });
+      await db.createRuta({ ...editable, numero_paradas: 0, placa_bus: null, telefono_contacto: "", nombre_chofer: "" });
+      toast({ title: R.toastCreated, variant: "success" });
     }
     setSaving(false);
     setShowForm(false);
+    setEditing(null);
     load();
   };
 
   const del = async (id: number) => {
     setDeleting(id);
     await db.deleteRuta(id);
-    toast({ title: "Ruta eliminada", variant: "info" });
+    toast({ title: R.toastDeleted, variant: "info" });
     setDeleting(null);
+    setConfirmDelete(null);
     load();
   };
 
   return (
     <AppShell role="admin">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm text-muted mb-1">Gestión</p>
-            <h1 className="font-display text-3xl">Rutas</h1>
+            <p className="text-sm text-muted mb-1">{R.kicker}</p>
+            <h1 className="font-display text-3xl">{R.title}</h1>
           </div>
-          <Button onClick={openNew}><Plus className="w-4 h-4" />Nueva ruta</Button>
+          <Button onClick={openNew}><Plus className="w-4 h-4" />{R.new}</Button>
         </div>
 
         {showForm && (
           <Card>
             <CardBody className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl">{editing ? "Editar ruta" : "Nueva ruta"}</h2>
-                <button onClick={() => setShowForm(false)} className="p-1 hover:bg-surface-2 rounded-lg"><X className="w-4 h-4" /></button>
+                <h2 className="font-display text-xl">{editing !== null ? R.editTitle : R.newTitle}</h2>
+                <button type="button" onClick={() => setShowForm(false)} aria-label={t.common.close} className="p-1 hover:bg-surface-2 rounded-lg"><X className="w-4 h-4" /></button>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="codigo">Código</Label>
+                  <Label htmlFor="codigo">{R.code}</Label>
                   <Input id="codigo" placeholder="A1" value={form.codigo} onChange={set("codigo")} maxLength={4} />
                 </div>
                 <div>
-                  <Label htmlFor="nombre">Nombre</Label>
-                  <Input id="nombre" placeholder="USFQ — Lumbisí" value={form.nombre} onChange={set("nombre")} />
+                  <Label htmlFor="nombre">{R.name}</Label>
+                  <Input id="nombre" placeholder={R.namePlaceholder} value={form.nombre} onChange={set("nombre")} />
                 </div>
               </div>
               <div>
-                <Label htmlFor="desc">Descripción</Label>
-                <Input id="desc" placeholder="Descripción breve de la ruta" value={form.descripcion} onChange={set("descripcion")} />
+                <Label htmlFor="desc">{R.description}</Label>
+                <Input id="desc" placeholder={R.descriptionPlaceholder} value={form.descripcion} onChange={set("descripcion")} />
               </div>
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
-                  <Label htmlFor="asientos">Asientos</Label>
+                  <Label htmlFor="asientos">{R.seats}</Label>
                   <Input id="asientos" type="number" min={10} max={80} value={form.numero_asientos} onChange={set("numero_asientos")} />
                 </div>
                 <div>
-                  <Label htmlFor="color">Color</Label>
+                  <Label htmlFor="color">{R.color}</Label>
                   <div className="flex gap-2">
-                    <input type="color" value={form.color_hex} onChange={(e) => setForm((f) => ({ ...f, color_hex: e.target.value }))}
-                      className="w-10 h-10 rounded-lg border border-border cursor-pointer" />
-                    <Input value={form.color_hex} onChange={set("color_hex")} className="font-mono" />
+                    <input type="color" aria-label={R.color} value={form.color_hex} onChange={(e) => setForm((f) => ({ ...f, color_hex: e.target.value }))}
+                      className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
+                    <Input id="color" value={form.color_hex} onChange={set("color_hex")} className="font-mono" />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="estado">Estado</Label>
+                  <Label htmlFor="estado">{R.status}</Label>
                   <Select id="estado" value={form.estado} onChange={set("estado")}>
-                    <option value="activa">Activa</option>
-                    <option value="suspendida">Suspendida</option>
-                    <option value="inactiva">Inactiva</option>
+                    <option value="activa">{t.status.route.activa}</option>
+                    <option value="suspendida">{t.status.route.suspendida}</option>
+                    <option value="inactiva">{t.status.route.inactiva}</option>
                   </Select>
                 </div>
               </div>
               <div>
-                <Label>Días de operación</Label>
+                <Label>{R.days}</Label>
                 <div className="flex gap-2 mt-1 flex-wrap">
                   {DIAS_OPT.map((d) => (
-                    <button key={d} onClick={() => toggleDia(d)}
+                    <button key={d} type="button" aria-pressed={form.dias_operacion.includes(d)} onClick={() => toggleDia(d)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 ${
                         form.dias_operacion.includes(d) ? "border-primary bg-primary text-white" : "border-border hover:border-primary/40"
                       }`}>
-                      {DIAS_LABELS[d]}
+                      {t.days[d]}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button loading={saving} onClick={save}><Check className="w-4 h-4" />Guardar</Button>
+                <Button variant="outline" onClick={() => setShowForm(false)}>{t.common.cancel}</Button>
+                <Button loading={saving} onClick={save}><Check className="w-4 h-4" />{t.common.save}</Button>
               </div>
             </CardBody>
           </Card>
@@ -174,23 +184,31 @@ export default function AdminRutasPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium truncate max-w-[160px] sm:max-w-none">{r.nombre}</p>
-                      <Badge variant={r.estado === "activa" ? "success" : "warning"}>{r.estado}</Badge>
+                      <p className="font-medium truncate max-w-[180px] sm:max-w-none">{r.nombre}</p>
+                      <StatusBadge kind="route" value={r.estado} />
                     </div>
+                    <p className="text-xs text-muted line-clamp-1 mt-0.5 hidden sm:block">{localized(r, "descripcion")}</p>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted mt-0.5">
-                      <span className="flex items-center gap-1 whitespace-nowrap"><MapPin className="w-3 h-3" />{r.numero_paradas} paradas</span>
-                      <span className="flex items-center gap-1 whitespace-nowrap"><Bus className="w-3 h-3" />{r.numero_asientos} asientos</span>
-                      <span className="whitespace-nowrap">{r.dias_operacion.map((d) => DIAS_LABELS[d]).join(" ")}</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap"><MapPin className="w-3 h-3" />{t.common.stops(r.numero_paradas)}</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap"><Bus className="w-3 h-3" />{t.common.seats(r.numero_asientos)}</span>
+                      <span className="whitespace-nowrap">{r.dias_operacion.map((d) => t.days[d as keyof typeof t.days] ?? d).join(" ")}</span>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" aria-label={R.editLabel(r.codigo)} title={R.editLabel(r.codigo)} onClick={() => openEdit(r)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
-                    <Button size="sm" variant="outline" className="text-state-error border-state-error/30 hover:bg-state-error/10"
-                      loading={deleting === r.id_ruta} onClick={() => del(r.id_ruta)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {confirmDelete === r.id_ruta ? (
+                      <Button size="sm" variant="danger" loading={deleting === r.id_ruta} onClick={() => del(r.id_ruta)}>
+                        {t.common.confirmDelete}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" aria-label={R.deleteLabel(r.codigo)} title={R.deleteLabel(r.codigo)}
+                        className="text-state-error border-state-error/30 hover:bg-state-error/10"
+                        onClick={() => setConfirmDelete(r.id_ruta)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardBody>

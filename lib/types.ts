@@ -46,6 +46,8 @@ export interface Ruta {
   numero_asientos: number;
   color_hex: string;
   descripcion: string;
+  /** Optional English translation of the description (seed content). */
+  descripcion_en?: string;
   dias_operacion: string[];
   estado: RouteStatus;
 }
@@ -104,6 +106,9 @@ export interface Mensaje {
   destinatario_ruta?: number | null; // para_ruta bigint
   asunto: string;
   cuerpo: string;
+  /** Optional English translations (seed content only; user-authored messages show as written). */
+  asunto_en?: string;
+  cuerpo_en?: string;
   leido: boolean;           // boolean en Supabase
   created_at: string;
 }

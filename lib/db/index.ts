@@ -15,7 +15,9 @@ import {
   SEED_RESERVAS,
   SEED_RUTAS,
   SEED_USUARIOS,
+  SEED_VERSION,
 } from "@/lib/data/seed";
+import { localISODate } from "@/lib/utils";
 import type {
   Asignacion,
   Bus,
@@ -58,9 +60,17 @@ type Store = {
 
 let _store: Store | null = null;
 
-function getStore(): Store {
-  if (_store) return _store;
-  _store = {
+/**
+ * Demo edits (bookings, messages, users, route changes) are kept in localStorage.
+ * The snapshot is tied to the seed version and to the day it was taken: seed dates
+ * are generated relative to today, so yesterday's snapshot would point at stale trips.
+ * Older snapshots (including ones from previous seed versions) are discarded.
+ */
+const STORE_KEY = "panchobus-demo-store";
+const LEGACY_KEYS = ["panchobus-store-overrides"];
+
+function freshStore(): Store {
+  return {
     usuarios: structuredClone(SEED_USUARIOS),
     rutas: structuredClone(SEED_RUTAS),
     paradas: structuredClone(SEED_PARADAS),
@@ -69,14 +79,26 @@ function getStore(): Store {
     reservas: structuredClone(SEED_RESERVAS),
     mensajes: structuredClone(SEED_MENSAJES),
   };
+}
+
+function getStore(): Store {
+  if (_store) return _store;
+  _store = freshStore();
   if (typeof window !== "undefined") {
     try {
-      const persisted = localStorage.getItem("panchobus-store-overrides");
+      LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+      const persisted = localStorage.getItem(STORE_KEY);
       if (persisted) {
         const o = JSON.parse(persisted);
-        if (o.reservas) _store.reservas = o.reservas;
-        if (o.mensajes) _store.mensajes = o.mensajes;
-        if (o.usuarios) _store.usuarios = o.usuarios;
+        if (o.version === SEED_VERSION && o.day === localISODate()) {
+          if (o.reservas) _store.reservas = o.reservas;
+          if (o.mensajes) _store.mensajes = o.mensajes;
+          if (o.usuarios) _store.usuarios = o.usuarios;
+          if (o.rutas) _store.rutas = o.rutas;
+          if (o.asignaciones) _store.asignaciones = o.asignaciones;
+        } else {
+          localStorage.removeItem(STORE_KEY);
+        }
       }
     } catch { /* ignore */ }
   }
@@ -87,10 +109,34 @@ function persist(s: Store) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(
-      "panchobus-store-overrides",
-      JSON.stringify({ reservas: s.reservas, mensajes: s.mensajes, usuarios: s.usuarios })
+      STORE_KEY,
+      JSON.stringify({
+        version: SEED_VERSION,
+        day: localISODate(),
+        reservas: s.reservas,
+        mensajes: s.mensajes,
+        usuarios: s.usuarios,
+        rutas: s.rutas,
+        asignaciones: s.asignaciones,
+      })
     );
   } catch { /* ignore quota errors */ }
+}
+
+/** Result of validating a boarding QR. */
+export type ScanOutcome =
+  | { status: "ok"; reserva: Reserva }
+  | { status: "already_used"; reserva: Reserva }
+  | { status: "cancelled"; reserva: Reserva }
+  | { status: "waitlisted"; reserva: Reserva }
+  | { status: "not_found" };
+
+/** Renumbers waitlist positions for one trip in creation order. */
+function renumberWaitlist(s: Store, idAsignacion: number) {
+  s.reservas
+    .filter((r) => r.id_asignacion === idAsignacion && r.estado === "en_espera")
+    .sort((a, b) => (a.posicion_waitlist ?? 0) - (b.posicion_waitlist ?? 0) || a.created_at.localeCompare(b.created_at))
+    .forEach((r, i) => { r.posicion_waitlist = i + 1; });
 }
 
 // ============================================================
@@ -368,6 +414,11 @@ export const db = {
   ): Promise<Reserva> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
+      const { count: existing } = await supabase
+        .from("reservas").select("*", { count: "exact", head: true })
+        .eq("id_usuario", idUsuario).eq("id_asignacion", idAsignacion)
+        .in("estado", ["confirmada", "en_espera"]);
+      if ((existing ?? 0) > 0) throw new Error("DUPLICATE_BOOKING");
       const { data: asg } = await supabase
         .from("asignaciones").select("cupos_disponibles, cupos_reservados").eq("id_asignacion", idAsignacion).single();
       const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
@@ -394,6 +445,10 @@ export const db = {
     }
     // Demo mode
     const s = getStore();
+    const duplicate = s.reservas.find(
+      (r) => r.id_usuario === idUsuario && r.id_asignacion === idAsignacion && (r.estado === "confirmada" || r.estado === "en_espera")
+    );
+    if (duplicate) throw new Error("DUPLICATE_BOOKING");
     const asg = s.asignaciones.find((a) => a.id_asignacion === idAsignacion);
     const enEspera = asg ? asg.cupos_reservados >= asg.cupos_disponibles : false;
     const reserva: Reserva = {
@@ -401,7 +456,7 @@ export const db = {
       id_usuario: idUsuario,
       id_asignacion: idAsignacion,
       estado: enEspera ? "en_espera" : "confirmada",
-      qr_token: `QR-${idAsignacion}-${idUsuario}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      qr_token: `PB-${idAsignacion}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       posicion_waitlist: enEspera
         ? s.reservas.filter((r) => r.id_asignacion === idAsignacion && r.estado === "en_espera").length + 1
         : null,
@@ -421,41 +476,65 @@ export const db = {
         .from("reservas").select("id_asignacion, estado").eq("id_reserva", idReserva).single();
       await supabase.from("reservas").update({ estado: "cancelada" }).eq("id_reserva", idReserva);
       if (reserva?.estado === "confirmada") {
-        const { data: asg } = await supabase
-          .from("asignaciones").select("cupos_reservados").eq("id_asignacion", reserva.id_asignacion).single();
-        if (asg) {
-          await supabase.from("asignaciones")
-            .update({ cupos_reservados: Math.max(0, asg.cupos_reservados - 1) })
-            .eq("id_asignacion", reserva.id_asignacion);
-        }
+        // The freed seat goes to the first person on the waitlist; only if nobody is
+        // waiting does the trip's booked-seat count go down.
         const { data: espera } = await supabase
           .from("reservas").select("id_reserva")
           .eq("id_asignacion", reserva.id_asignacion).eq("estado", "en_espera")
-          .order("posicion_waitlist").limit(1).single();
+          .order("posicion_waitlist").limit(1).maybeSingle();
         if (espera) {
           await supabase.from("reservas")
             .update({ estado: "confirmada", posicion_waitlist: null })
             .eq("id_reserva", espera.id_reserva);
+        } else {
+          const { data: asg } = await supabase
+            .from("asignaciones").select("cupos_reservados").eq("id_asignacion", reserva.id_asignacion).single();
+          if (asg) {
+            await supabase.from("asignaciones")
+              .update({ cupos_reservados: Math.max(0, asg.cupos_reservados - 1) })
+              .eq("id_asignacion", reserva.id_asignacion);
+          }
         }
       }
       return;
     }
     const s = getStore();
     const r = s.reservas.find((x) => x.id_reserva === idReserva);
-    if (!r) return;
+    if (!r || r.estado === "cancelada") return;
+    const wasConfirmed = r.estado === "confirmada";
     r.estado = "cancelada";
+    r.posicion_waitlist = null;
     const asg = s.asignaciones.find((a) => a.id_asignacion === r.id_asignacion);
-    if (asg && asg.cupos_reservados > 0) asg.cupos_reservados -= 1;
+    if (wasConfirmed && asg) {
+      // A freed seat goes to the first person on the waitlist, if any.
+      const next = s.reservas
+        .filter((x) => x.id_asignacion === r.id_asignacion && x.estado === "en_espera")
+        .sort((a, b) => (a.posicion_waitlist ?? 0) - (b.posicion_waitlist ?? 0))[0];
+      if (next) {
+        next.estado = "confirmada";
+        next.posicion_waitlist = null;
+      } else if (asg.cupos_reservados > 0) {
+        asg.cupos_reservados -= 1;
+      }
+    }
+    renumberWaitlist(s, r.id_asignacion);
     persist(s);
   },
 
-  async scanQR(qrToken: string, idChofer: string): Promise<Reserva | null> {
+  async scanQR(qrToken: string, idChofer: string): Promise<ScanOutcome> {
+    const classify = (reserva: Reserva): ScanOutcome | null => {
+      if (reserva.estado === "usada") return { status: "already_used", reserva };
+      if (reserva.estado === "cancelada" || reserva.estado === "no_show") return { status: "cancelled", reserva };
+      if (reserva.estado === "en_espera") return { status: "waitlisted", reserva };
+      return null;
+    };
     if (IS_SUPABASE) {
       const supabase = getSupabase();
-      const { data: reserva } = await supabase
+      const { data: row } = await supabase
         .from("reservas").select("*").eq("qr_token", qrToken).single();
-      if (!reserva) return null;
-      if (reserva.estado === "usada") return normalizeReserva(reserva);
+      if (!row) return { status: "not_found" };
+      const blocked = classify(normalizeReserva(row));
+      if (blocked) return blocked;
       const { data, error } = await supabase
         .from("reservas")
         .update({
@@ -465,18 +544,19 @@ export const db = {
         })
         .eq("qr_token", qrToken)
         .select().single();
-      if (error) return null;
-      return normalizeReserva(data);
+      if (error || !data) return { status: "not_found" };
+      return { status: "ok", reserva: normalizeReserva(data) };
     }
     const s = getStore();
-    const r = s.reservas.find((x) => x.qr_token === qrToken);
-    if (!r) return null;
-    if (r.estado === "usada") return r;
+    const r = s.reservas.find((x) => x.qr_token.toUpperCase() === qrToken.trim().toUpperCase());
+    if (!r) return { status: "not_found" };
+    const blocked = classify(r);
+    if (blocked) return blocked;
     r.estado = "usada";
     r.qr_escaneado_at = new Date().toISOString();
     r.qr_escaneado_por = idChofer;
     persist(s);
-    return r;
+    return { status: "ok", reserva: r };
   },
 
   // ──────────────────────────────────────────────────────────
@@ -502,9 +582,9 @@ export const db = {
       const idRuta = usuario?.id_ruta ?? null;
       let query = supabase.from("mensajes").select("*");
       if (idRuta) {
-        query = query.or(`para_usuario.eq.${idUsuario},para_ruta.eq.${idRuta}`);
+        query = query.or(`para_usuario.eq.${idUsuario},para_ruta.eq.${idRuta},and(para_usuario.is.null,para_ruta.is.null)`);
       } else {
-        query = query.eq("para_usuario", idUsuario);
+        query = query.or(`para_usuario.eq.${idUsuario},and(para_usuario.is.null,para_ruta.is.null)`);
       }
       const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
@@ -517,7 +597,8 @@ export const db = {
       .filter((m) =>
         m.destinatario_id === idUsuario ||
         m.remitente_id === idUsuario ||
-        (idRuta !== null && m.destinatario_ruta === idRuta)
+        (idRuta !== null && m.destinatario_ruta === idRuta) ||
+        (m.destinatario_id == null && m.destinatario_ruta == null)
       )
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   },
@@ -547,6 +628,18 @@ export const db = {
     return nuevo;
   },
 
+  /** Demo mode only: drops every local edit and restores the seed data. */
+  resetDemo(): void {
+    if (typeof window !== "undefined") {
+      try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
+    }
+    _store = freshStore();
+  },
+
+  isDemo(): boolean {
+    return !IS_SUPABASE;
+  },
+
   async marcarMensajeLeido(idMensaje: number): Promise<void> {
     if (IS_SUPABASE) {
       const supabase = getSupabase();
@@ -563,7 +656,6 @@ export const db = {
 // NORMALIZERS — mapean columnas de Supabase al tipo interno
 // ============================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeAsignacion(d: any): Asignacion {
   return {
     id_asignacion: Number(d.id_asignacion),
@@ -580,7 +672,6 @@ function normalizeAsignacion(d: any): Asignacion {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeReserva(d: any): Reserva {
   return {
     id_reserva:        Number(d.id_reserva),
@@ -596,7 +687,6 @@ function normalizeReserva(d: any): Reserva {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeMensaje(d: any): Mensaje {
   return {
     id_mensaje:        Number(d.id_mensaje),

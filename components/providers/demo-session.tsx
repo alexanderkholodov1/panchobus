@@ -13,17 +13,19 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { Usuario } from "@/lib/types";
 import { db } from "@/lib/db";
+import { STAFF_DOMAIN, STUDENT_DOMAIN } from "@/lib/data/seed";
 
 const IS_SUPABASE =
   typeof process !== "undefined" &&
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Credenciales de los usuarios demo en Supabase (password fijo: demo1234)
+// Credentials of the demo users when running against Supabase (fixed password: demo1234).
+// All demo identities are synthetic and use the reserved .example TLD.
 const ROLE_DEMO_CREDENTIALS: Record<string, string> = {
-  estudiante: "akholodov@estud.usfq.edu.ec",
-  admin:      "jcarvajal@usfq.edu.ec",
-  chofer:     "cmendoza@usfq.edu.ec",
+  estudiante: `vcastro@${STUDENT_DOMAIN}`,
+  admin:      `druiz@${STAFF_DOMAIN}`,
+  chofer:     `mguerrero@${STAFF_DOMAIN}`,
 };
 
 // IDs en el store local (demo mode sin Supabase)
@@ -158,7 +160,7 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
         },
       });
       if (error) throw new Error(error.message);
-      if (!authData.user) throw new Error("Error al crear la cuenta.");
+      if (!authData.user) throw new Error("SIGNUP_FAILED");
       // El trigger handle_new_user crea la fila en public.usuarios
       await new Promise((r) => setTimeout(r, 800));
       const u = await db.getUsuario(authData.user.id);
@@ -180,6 +182,10 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
       return fallback;
     }
     // Demo mode
+    const existing = await db.getUsuarios();
+    if (existing.some((u) => u.correo_electronico.toLowerCase() === data.email.toLowerCase())) {
+      throw new Error("EMAIL_EXISTS");
+    }
     const id = `stu-${Date.now()}`;
     const nuevo: Usuario = {
       id_usuario: id,
@@ -231,6 +237,6 @@ export function DemoSessionProvider({ children }: { children: React.ReactNode })
 
 export function useSession() {
   const ctx = useContext(SessionContext);
-  if (!ctx) throw new Error("useSession debe usarse dentro de DemoSessionProvider");
+  if (!ctx) throw new Error("useSession must be used inside DemoSessionProvider");
   return ctx;
 }

@@ -5,6 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/demo-session";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LangToggle } from "@/components/ui/lang-toggle";
+import { AboutButton } from "@/components/about/about-project";
+import { useI18n } from "@/lib/i18n";
+import type { Dict } from "@/lib/i18n/es";
 import { cn, initials } from "@/lib/utils";
 import {
   Home,
@@ -18,56 +22,57 @@ import {
   Bus,
   Users,
   MessageSquare,
-  Sparkles,
+  BarChart3,
   Camera,
   Navigation,
   ListChecks,
   Route as RouteIcon,
-  ChevronDown
+  ChevronDown,
+  UserCog
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 
+type Role = "estudiante" | "admin" | "chofer";
 type NavItem = { href: string; label: string; icon: typeof Home };
 
-const STUDENT_NAV: NavItem[] = [
-  { href: "/app/inicio", label: "Inicio", icon: Home },
-  { href: "/app/rutas", label: "Rutas", icon: Map },
-  { href: "/app/reservar", label: "Reservar", icon: CalendarCheck },
-  { href: "/app/mi-qr", label: "Mi QR", icon: QrCode },
-  { href: "/app/mis-reservas", label: "Mis reservas", icon: ListChecks },
-  { href: "/app/horarios", label: "Horarios", icon: Clock },
-  { href: "/app/perfil", label: "Perfil", icon: UserCircle2 }
-];
+function navFor(role: Role, t: Dict): NavItem[] {
+  const n = t.shell.nav;
+  if (role === "admin") {
+    return [
+      { href: "/admin/dashboard", label: n.admin.dashboard, icon: LayoutDashboard },
+      { href: "/admin/rutas", label: n.admin.routes, icon: RouteIcon },
+      { href: "/admin/buses", label: n.admin.buses, icon: Bus },
+      { href: "/admin/choferes", label: n.admin.staff, icon: UserCog },
+      { href: "/admin/asignaciones", label: n.admin.assignments, icon: CalendarCheck },
+      { href: "/admin/reservas", label: n.admin.bookings, icon: ListChecks },
+      { href: "/admin/usuarios", label: n.admin.users, icon: Users },
+      { href: "/admin/mensajes", label: n.admin.messages, icon: MessageSquare },
+      { href: "/admin/insights", label: n.admin.insights, icon: BarChart3 }
+    ];
+  }
+  if (role === "chofer") {
+    // "chofer" covers all route staff (drivers and attendants).
+    return [
+      { href: "/chofer/hoy", label: n.driver.today, icon: Navigation },
+      { href: "/chofer/pasajeros", label: n.driver.passengers, icon: Users },
+      { href: "/chofer/escanear", label: n.driver.scan, icon: Camera },
+      { href: "/chofer/mensajes", label: n.driver.messages, icon: MessageSquare }
+    ];
+  }
+  return [
+    { href: "/app/inicio", label: n.student.home, icon: Home },
+    { href: "/app/rutas", label: n.student.routes, icon: Map },
+    { href: "/app/reservar", label: n.student.book, icon: CalendarCheck },
+    { href: "/app/mi-qr", label: n.student.qr, icon: QrCode },
+    { href: "/app/mis-reservas", label: n.student.bookings, icon: ListChecks },
+    { href: "/app/horarios", label: n.student.schedule, icon: Clock },
+    { href: "/app/perfil", label: n.student.profile, icon: UserCircle2 }
+  ];
+}
 
-const ADMIN_NAV: NavItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/rutas", label: "Rutas", icon: RouteIcon },
-  { href: "/admin/buses", label: "Buses", icon: Bus },
-  { href: "/admin/choferes", label: "Personal de Ruta", icon: Users },
-  { href: "/admin/asignaciones", label: "Asignaciones", icon: CalendarCheck },
-  { href: "/admin/reservas", label: "Reservas", icon: ListChecks },
-  { href: "/admin/usuarios", label: "Usuarios", icon: Users },
-  { href: "/admin/mensajes", label: "Mensajes", icon: MessageSquare },
-  { href: "/admin/insights", label: "Insights IA", icon: Sparkles }
-];
-
-const DRIVER_NAV: NavItem[] = [
-  { href: "/chofer/hoy", label: "Ruta de hoy", icon: Navigation },
-  { href: "/chofer/pasajeros", label: "Pasajeros", icon: Users },
-  { href: "/chofer/escanear", label: "Escanear QR", icon: Camera },
-  { href: "/chofer/mensajes", label: "Mensajes", icon: MessageSquare }
-];
-
-// "chofer" role = todo el personal de ruta (conductores + acompañantes)
-
-export function AppShell({
-  children,
-  role
-}: {
-  children: React.ReactNode;
-  role: "estudiante" | "admin" | "chofer";
-}) {
+export function AppShell({ children, role }: { children: React.ReactNode; role: Role }) {
   const { user, isLoading, logout } = useSession();
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [openMobile, setOpenMobile] = useState(false);
@@ -81,15 +86,14 @@ export function AppShell({
     }
   }, [isLoading, user, role, router]);
 
-  const nav = useMemo(() => {
-    if (role === "admin") return ADMIN_NAV;
-    if (role === "chofer") return DRIVER_NAV;
-    return STUDENT_NAV;
-  }, [role]);
+  useEffect(() => { setOpenMobile(false); }, [pathname]);
 
-  if (isLoading || !user) {
+  const nav = useMemo(() => navFor(role, t), [role, t]);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+
+  if (isLoading || !user || user.rol !== role) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" role="status" aria-label={t.common.loading}>
         <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
       </div>
     );
@@ -100,33 +104,26 @@ export function AppShell({
     router.replace("/");
   };
 
-  const roleLabel = role === "admin" ? "Administración" : role === "chofer" ? "Personal de Ruta" : "Estudiante";
-
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-surface sticky top-0 h-screen">
-        <div className="px-5 h-16 flex items-center border-b border-border">
-          <Link href="/">
-            <Logo size={26} />
-          </Link>
+        <div className="px-5 h-16 flex items-center justify-between border-b border-border">
+          <Link href="/" aria-label="Pancho Bus"><Logo size={26} /></Link>
+          <AboutButton />
         </div>
-        <div className="px-3 py-3 text-xs uppercase tracking-wider text-muted">
-          {roleLabel}
-        </div>
+        <div className="px-3 py-3 text-xs uppercase tracking-wider text-muted">{t.roles[role]}</div>
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           {nav.map((it) => {
-            const active = pathname === it.href || pathname.startsWith(it.href + "/");
             const Icon = it.icon;
             return (
               <Link
                 key={it.href}
                 href={it.href}
+                aria-current={isActive(it.href) ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-surface-2"
+                  isActive(it.href) ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-surface-2"
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -144,57 +141,54 @@ export function AppShell({
               <p className="text-sm font-medium truncate">{user.nombre}</p>
               <p className="text-xs text-muted truncate">{user.correo_electronico}</p>
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <ThemeToggle />
             <button
               onClick={onLogout}
               className="p-2 rounded-lg hover:bg-surface-2 text-muted hover:text-state-error transition-colors"
-              aria-label="Cerrar sesión"
+              aria-label={t.shell.logout}
+              title={t.shell.logout}
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-          {role === "admin" && (
-            <p className="text-[10px] text-muted/40 text-center pb-1">PanchoBus v1.0.0</p>
-          )}
+          <div className="flex items-center justify-between gap-2">
+            <ThemeToggle />
+            <LangToggle />
+          </div>
+          <p className="text-[10px] text-muted/60 text-center">{t.shell.version} · {t.common.demoNote}</p>
         </div>
       </aside>
 
-      {/* Mobile */}
-      <div className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-surface border-b border-border flex items-center justify-between px-4">
-        <Link href="/">
-          <Logo size={22} />
-        </Link>
-        <button
-          onClick={() => setOpenMobile((o) => !o)}
-          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-surface-2"
-        >
-          {nav.find((n) => pathname.startsWith(n.href))?.label ?? "Menú"}
-          <ChevronDown className={cn("w-4 h-4 transition-transform", openMobile && "rotate-180")} />
-        </button>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-surface border-b border-border flex items-center justify-between px-4 gap-2">
+        <Link href="/" aria-label="Pancho Bus"><Logo size={22} /></Link>
+        <div className="flex items-center gap-2">
+          <AboutButton />
+          <button
+            onClick={() => setOpenMobile((o) => !o)}
+            aria-expanded={openMobile}
+            aria-controls="mobile-nav"
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-surface-2 max-w-[48vw]"
+          >
+            <span className="truncate">{nav.find((n) => isActive(n.href))?.label ?? t.shell.menu}</span>
+            <ChevronDown className={cn("w-4 h-4 shrink-0 transition-transform", openMobile && "rotate-180")} />
+          </button>
+        </div>
       </div>
 
       {openMobile && (
-        <div
-          onClick={() => setOpenMobile(false)}
-          className="lg:hidden fixed inset-0 bg-black/40 z-30 mt-14 animate-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-surface border-b border-border p-3 space-y-1"
-          >
+        <div onClick={() => setOpenMobile(false)} className="lg:hidden fixed inset-0 bg-black/40 z-30 mt-14 animate-in">
+          <div id="mobile-nav" onClick={(e) => e.stopPropagation()} className="bg-surface border-b border-border p-3 space-y-1 max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+            <p className="px-3 pb-1 text-xs uppercase tracking-wider text-muted">{t.roles[role]} · {user.nombre}</p>
             {nav.map((it) => {
               const Icon = it.icon;
-              const active = pathname === it.href || pathname.startsWith(it.href + "/");
               return (
                 <Link
                   key={it.href}
                   href={it.href}
-                  onClick={() => setOpenMobile(false)}
+                  aria-current={isActive(it.href) ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm",
-                    active ? "bg-primary text-primary-foreground" : "hover:bg-surface-2"
+                    isActive(it.href) ? "bg-primary text-primary-foreground" : "hover:bg-surface-2"
                   )}
                 >
                   <Icon className="w-4 h-4" />
@@ -202,10 +196,13 @@ export function AppShell({
                 </Link>
               );
             })}
-            <div className="border-t border-border pt-2 mt-2 flex items-center justify-between">
-              <ThemeToggle />
-              <button onClick={onLogout} className="text-sm text-state-error px-3 py-2">
-                Cerrar sesión
+            <div className="border-t border-border pt-3 mt-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <LangToggle />
+              </div>
+              <button onClick={onLogout} className="inline-flex items-center gap-1.5 text-sm text-state-error px-3 py-2">
+                <LogOut className="w-4 h-4" />{t.shell.logout}
               </button>
             </div>
           </div>

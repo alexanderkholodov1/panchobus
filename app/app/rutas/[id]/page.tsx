@@ -7,7 +7,11 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { db } from "@/lib/db";
+import { useI18n } from "@/lib/i18n";
+import { isBookable } from "@/lib/trips";
+import { localHHMM, localISODate, occupancyPct } from "@/lib/utils";
 import type { Asignacion, Parada, Ruta } from "@/lib/types";
 import { MapPin, Clock, Bus, User, Phone, CalendarCheck, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 
@@ -17,13 +21,14 @@ const IS_SUPABASE =
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 function CuposBar({ reservados, total }: { reservados: number; total: number }) {
-  const pct = Math.min(100, Math.round((reservados / total) * 100));
+  const { t } = useI18n();
+  const pct = occupancyPct(reservados, total);
   const color = pct >= 90 ? "#C13030" : pct >= 70 ? "#E89F1F" : "#2A7D4F";
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-muted">{total - reservados} cupos libres</span>
-        <span style={{ color }}>{pct}% ocupado</span>
+        <span className="text-muted">{t.common.freeSeats(Math.max(0, total - reservados))}</span>
+        <span style={{ color }}>{t.common.occupied(pct)}</span>
       </div>
       <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
@@ -35,6 +40,8 @@ function CuposBar({ reservados, total }: { reservados: number; total: number }) 
 export default function RutaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t, lang, fmtDate, localized } = useI18n();
+  const D = t.student.routeDetail;
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
@@ -50,8 +57,14 @@ export default function RutaDetailPage() {
       if (!r) { router.replace("/app/rutas"); return; }
       setRuta(r);
       setParadas(p);
-      const today = new Date().toISOString().slice(0, 10);
-      setAsignaciones(a.filter((x) => x.fecha >= today).slice(0, 5));
+      const today = localISODate();
+      const now = localHHMM();
+      setAsignaciones(
+        a.filter((x) => x.fecha > today || (x.fecha === today && (x.estado === "en_curso" || x.hora_salida > now)))
+          .filter((x) => x.estado !== "cancelada" && x.estado !== "completada")
+          .sort((x, y) => x.fecha.localeCompare(y.fecha) || x.hora_salida.localeCompare(y.hora_salida))
+          .slice(0, 6)
+      );
       const active = a.find((x) => x.fecha === today && x.estado === "en_curso");
       activeAsignacionId.current = active?.id_asignacion ?? null;
     });
@@ -90,7 +103,7 @@ export default function RutaDetailPage() {
         const html = `<div style="width:28px;height:28px;border-radius:50%;background:${isEndpoint ? color : "#ffffff"};border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${isEndpoint ? "#ffffff" : color};box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i + 1}</div>`;
         const icon = L.divIcon({ html, className: "", iconSize: [28, 28], iconAnchor: [14, 14] });
         L.marker([parada.latitud!, parada.longitud!], { icon }).addTo(map)
-          .bindPopup(`<b>${parada.nombre}</b><br/><small>${parada.tipo} &nbsp;·&nbsp; ↑ ${parada.hora_salida}</small>`);
+          .bindPopup(`<b>${parada.nombre}</b><br/><small>${t.stopType[parada.tipo]} &nbsp;·&nbsp; ↑ ${parada.hora_salida} &nbsp;·&nbsp; ↓ ${parada.hora_regreso}</small>`);
       });
       map.fitBounds(L.latLngBounds(latlngs), { padding: [32, 32] });
       setMapReady(true);
@@ -108,9 +121,11 @@ export default function RutaDetailPage() {
     return () => {
       const prior = (window as any)._panchoMap;
       if (prior) { prior.remove(); (window as any)._panchoMap = null; }
+      busMarkerRef.current = null;
       setMapReady(false);
     };
-  }, [ruta, paradas]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruta, paradas, lang]);
 
   useEffect(() => {
     if (!IS_SUPABASE) return;
@@ -138,13 +153,13 @@ export default function RutaDetailPage() {
     if (!map || !L) return;
     const busHtml = `<div style="width:32px;height:32px;border-radius:50%;background:#1A1718;border:3px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M4 16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-3.5-3.6-4-8-4S4 3.5 4 7v9zm4 2a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm8 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM4 11h16v2H4v-2z"/></svg></div>`;
     const busIcon = L.divIcon({ html: busHtml, className: "", iconSize: [32, 32], iconAnchor: [16, 16] });
-    if (busMarkerRef.current) {
-      busMarkerRef.current.setLatLng([busLat, busLng]);
+    if (busMarkerRef.current && map.hasLayer(busMarkerRef.current)) {
+      busMarkerRef.current.setLatLng([busLat, busLng]).setPopupContent(`<b>${D.busLivePopup}</b>`);
     } else {
       busMarkerRef.current = L.marker([busLat, busLng], { icon: busIcon, zIndexOffset: 1000 })
-        .addTo(map).bindPopup("<b>Bus en ruta</b><br/><small>Posición en tiempo real</small>");
+        .addTo(map).bindPopup(`<b>${D.busLivePopup}</b>`);
     }
-  }, [busLat, busLng]);
+  }, [busLat, busLng, D.busLivePopup, mapReady]);
 
   if (!ruta) return (
     <AppShell role="estudiante">
@@ -160,47 +175,49 @@ export default function RutaDetailPage() {
     <AppShell role="estudiante">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <Link href="/app/rutas" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />Volver a rutas
+          <ArrowLeft className="w-4 h-4" />{D.back}
         </Link>
 
         <div className="overflow-hidden rounded-2xl" style={{ background: `linear-gradient(135deg, ${ruta.color_hex}, ${ruta.color_hex}CC)` }}>
           <div className="p-6 text-white">
             <Badge className="bg-white/20 border-white/30 text-white mb-3">{ruta.codigo}</Badge>
             <h1 className="font-display text-3xl sm:text-4xl mb-1">{ruta.nombre}</h1>
-            <p className="text-white/80 text-sm">{ruta.descripcion}</p>
+            <p className="text-white/80 text-sm">{localized(ruta, "descripcion")}</p>
             <div className="flex flex-wrap gap-4 mt-4 text-sm text-white/90">
-              <span className="flex items-center gap-1.5"><Bus className="w-4 h-4" />{ruta.numero_asientos} asientos</span>
-              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{ruta.numero_paradas} paradas</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{ruta.dias_operacion.join(" · ")}</span>
+              <span className="flex items-center gap-1.5"><Bus className="w-4 h-4" />{t.common.seats(ruta.numero_asientos)}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{t.common.stops(ruta.numero_paradas)}</span>
+              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{ruta.dias_operacion.map((d) => t.days[d as keyof typeof t.days] ?? d).join(" · ")}</span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-3 items-center">
-          <Badge variant={ruta.estado === "activa" ? "success" : ruta.estado === "suspendida" ? "warning" : "default"}>
-            {ruta.estado === "activa" ? <><CheckCircle2 className="w-3.5 h-3.5" /> Activa</> : <><AlertCircle className="w-3.5 h-3.5" /> {ruta.estado}</>}
-          </Badge>
+          <StatusBadge
+            kind="route"
+            value={ruta.estado}
+            icon={ruta.estado === "activa" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+          />
           <div className="flex-1" />
           {ruta.estado === "activa" && (
-            <Link href={`/app/reservar?ruta=${ruta.id_ruta}`}><Button>Reservar cupo <ArrowRight className="w-4 h-4" /></Button></Link>
+            <Link href={`/app/reservar?ruta=${ruta.id_ruta}`}><Button>{D.book} <ArrowRight className="w-4 h-4" /></Button></Link>
           )}
         </div>
 
         <Card>
           <CardBody className="space-y-3">
-            <p className="font-display text-sm uppercase tracking-wider text-muted">Operador</p>
+            <p className="font-display text-sm uppercase tracking-wider text-muted">{D.operator}</p>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center"><User className="w-4 h-4 text-primary" /></div>
-              <div><p className="font-medium">{ruta.nombre_chofer}</p><p className="text-xs text-muted">Chofer asignado</p></div>
+              <div><p className="font-medium">{ruta.nombre_chofer || t.common.unassigned}</p><p className="text-xs text-muted">{D.driver}</p></div>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center"><Bus className="w-4 h-4 text-primary" /></div>
-              <div><p className="font-medium">{ruta.placa_bus ?? "Sin asignar"}</p><p className="text-xs text-muted">Placa del bus</p></div>
+              <div><p className="font-medium font-mono">{ruta.placa_bus ?? t.common.unassigned}</p><p className="text-xs text-muted">{D.plate}</p></div>
             </div>
             {ruta.telefono_contacto && (
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center"><Phone className="w-4 h-4 text-primary" /></div>
-                <div><p className="font-medium">{ruta.telefono_contacto}</p><p className="text-xs text-muted">Contacto</p></div>
+                <div><p className="font-medium">{ruta.telefono_contacto}</p><p className="text-xs text-muted">{D.contact}</p></div>
               </div>
             )}
           </CardBody>
@@ -209,39 +226,42 @@ export default function RutaDetailPage() {
         <div>
           <h2 className="font-display text-xl mb-3 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-primary" />
-            Mapa de la ruta
+            {D.map}
             {busLat !== null && (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-state-ok bg-state-ok/10 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-state-ok animate-pulse" />
-                Bus en ruta
+                {D.busLive}
               </span>
             )}
           </h2>
-          <div className="rounded-2xl overflow-hidden border border-border shadow-sm relative">
+          <div className="rounded-2xl overflow-hidden border border-border shadow-sm relative isolate">
             {hasMapData ? (
               <>
                 {!mapReady && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-2">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-7 h-7 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                      <p className="text-xs text-muted">Cargando mapa…</p>
+                      <p className="text-xs text-muted">{D.loadingMap}</p>
                     </div>
                   </div>
                 )}
-                <div id="route-map" style={{ height: "360px", width: "100%" }} className="bg-surface-2" />
+                <div id="route-map" role="region" aria-label={D.map} style={{ height: "360px", width: "100%" }} className="bg-surface-2 z-0" />
               </>
             ) : (
               <div className="h-48 flex flex-col items-center justify-center gap-2 bg-surface-2 text-muted">
                 <MapPin className="w-8 h-8 opacity-30" />
-                <p className="text-sm">Coordenadas no disponibles para esta ruta</p>
+                <p className="text-sm">{D.noCoords}</p>
               </div>
             )}
           </div>
-          {hasMapData && <p className="text-xs text-muted mt-1.5 text-right">Mapa: © OpenStreetMap contributors</p>}
+          {hasMapData && <p className="text-xs text-muted mt-1.5 text-right">{D.mapCredit}</p>}
         </div>
 
         <div>
-          <h2 className="font-display text-xl mb-3">Paradas ({paradas.length})</h2>
+          <div className="flex items-end justify-between gap-2 mb-3">
+            <h2 className="font-display text-xl">{D.stops(paradas.length)}</h2>
+            <p className="text-xs text-muted text-right">↑ {D.morningPickup} · ↓ {D.eveningDrop}</p>
+          </div>
           <div className="space-y-0">
             {paradas.map((p, i) => (
               <div key={p.id_parada} className="flex gap-3">
@@ -256,7 +276,7 @@ export default function RutaDetailPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium leading-tight">{p.nombre}</p>
-                      {p.tipo !== "intermedia" && <Badge variant="default" className="text-xs mt-1">{p.tipo === "origen" ? "Origen" : "Destino"}</Badge>}
+                      {p.tipo !== "intermedia" && <Badge variant="default" className="text-xs mt-1">{t.stopType[p.tipo]}</Badge>}
                     </div>
                     <div className="text-right text-xs text-muted shrink-0"><p>↑ {p.hora_salida}</p><p>↓ {p.hora_regreso}</p></div>
                   </div>
@@ -266,30 +286,32 @@ export default function RutaDetailPage() {
           </div>
         </div>
 
-        {asignaciones.length > 0 && (
+        {ruta.estado === "activa" && (
           <div>
-            <h2 className="font-display text-xl mb-3">Próximas salidas</h2>
+            <h2 className="font-display text-xl mb-3">{D.upcoming}</h2>
+            {asignaciones.length === 0 && <p className="text-sm text-muted">{D.noUpcoming}</p>}
             <div className="space-y-3">
               {asignaciones.map((a) => {
                 const libre = a.cupos_disponibles - a.cupos_reservados;
+                const bookable = isBookable(a, localISODate(), localHHMM());
                 return (
                   <Card key={a.id_asignacion}>
                     <CardBody className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="font-medium">
-                          {new Date(a.fecha + "T12:00:00").toLocaleDateString("es-EC", { weekday: "short", day: "numeric", month: "short" })} · {a.hora_salida}
+                          <span className="capitalize">{fmtDate(a.fecha, { weekday: "short", day: "numeric", month: "short" })}</span> · {a.hora_salida}
                         </p>
-                        <Badge variant={a.estado === "en_curso" ? "success" : a.estado === "completada" ? "default" : "info"}>{a.estado}</Badge>
+                        <StatusBadge kind="assignment" value={a.estado} />
                       </div>
                       <CuposBar reservados={a.cupos_reservados} total={a.cupos_disponibles} />
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted flex items-center gap-1">
                           <CalendarCheck className="w-3.5 h-3.5" />
-                          {libre > 0 ? `${libre} cupos disponibles` : "Sin cupos (lista espera)"}
+                          {libre > 0 ? D.seatsAvailable(libre) : D.noSeats}
                         </span>
-                        {a.estado === "programada" && (
+                        {bookable && (
                           <Link href={`/app/reservar?asignacion=${a.id_asignacion}`}>
-                            <Button size="sm" variant={libre > 0 ? "default" : "outline"}>{libre > 0 ? "Reservar" : "Lista espera"}</Button>
+                            <Button size="sm" variant={libre > 0 ? "default" : "outline"}>{libre > 0 ? D.reserve : D.joinWaitlist}</Button>
                           </Link>
                         )}
                       </div>

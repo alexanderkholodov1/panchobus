@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DemoSessionProvider } from "@/components/providers/demo-session";
 import { Toaster } from "@/components/ui/toaster";
+import { I18nProvider } from "@/lib/i18n";
+import { AboutProjectProvider } from "@/components/about/about-project";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,12 +21,12 @@ const baskerville = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: "Pancho Bus · USFQ",
+  title: "Pancho Bus · Concepto de plataforma / Platform concept",
   description:
-    "Transporte universitario USFQ. Reserva tu cupo, sigue tu bus en tiempo real y gestiona rutas desde una sola plataforma.",
+    "Concepto de plataforma para el transporte universitario de la USFQ: reservas, abordaje con QR y seguimiento de rutas. Proyecto de portafolio con datos sintéticos. / Platform concept for USFQ's university shuttle: bookings, QR boarding and route tracking. Portfolio project with synthetic data.",
   applicationName: "Pancho Bus",
-  authors: [{ name: "USFQ" }],
-  keywords: ["USFQ", "Pancho Bus", "transporte", "universidad", "Cumbayá", "Quito"],
+  authors: [{ name: "Alexander Kholodov", url: "https://github.com/alexanderkholodov1" }],
+  keywords: ["Pancho Bus", "USFQ", "transporte universitario", "university shuttle", "Quito", "portfolio"],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -32,11 +34,12 @@ export const metadata: Metadata = {
     title: "Pancho Bus",
   },
   icons: {
+    icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
   openGraph: {
-    title: "Pancho Bus · USFQ",
-    description: "Transporte universitario USFQ — moderno, accesible, en tiempo real.",
+    title: "Pancho Bus · Platform concept",
+    description: "Bookings, QR boarding and live routes for a university shuttle. Portfolio project with synthetic data.",
     type: "website"
   }
 };
@@ -60,10 +63,14 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning className={`${inter.variable} ${baskerville.variable}`}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <DemoSessionProvider>
-            {children}
-            <Toaster />
-          </DemoSessionProvider>
+          <I18nProvider>
+            <DemoSessionProvider>
+              <AboutProjectProvider>
+                {children}
+                <Toaster />
+              </AboutProjectProvider>
+            </DemoSessionProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>
